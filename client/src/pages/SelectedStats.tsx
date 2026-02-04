@@ -15,10 +15,10 @@ export default function SelectedStats() {
   const { user, isAuthenticated } = useAuth();
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
 
-  const { data: topics } = trpc.selectedTopics.listAll.useQuery();
+  const { data: topics, isLoading: topicsLoading } = trpc.selectedTopics.listAll.useQuery();
   const monthKeys = Array.from(new Set(topics?.map((t: any) => t.monthKey) || [])).sort((a, b) => b.localeCompare(a));
-  const { data: progressStats } = trpc.selectedTopics.progressStats.useQuery();
-  const { data: statusStats } = trpc.selectedTopics.statusStats.useQuery();
+  const { data: progressStats, isLoading: progressLoading } = trpc.selectedTopics.progressStats.useQuery();
+  const { data: statusStats, isLoading: statusLoading } = trpc.selectedTopics.statusStats.useQuery();
   const { data: contribution } = trpc.selectedTopics.monthlyContribution.useQuery(
     { monthKeys: selectedMonths },
     { enabled: selectedMonths.length > 0 }
@@ -69,21 +69,35 @@ export default function SelectedStats() {
     return <PermissionDenied message="仅管理员可访问统计汇总页面" />;
   }
 
+  // 显示加载状态
+  if (topicsLoading || progressLoading || statusLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="container mx-auto px-4 py-12">
+          <Card className="max-w-md mx-auto">
+            <CardHeader>
+              <CardTitle>加载中...</CardTitle>
+              <CardDescription>正在获取统计数据</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // 后端返回的是对象，不是数组
+  const statusStatsObj = statusStats || {};
+  const progressStatsObj = progressStats || {};
+
   const totalTopics = topics?.length || 0;
-  // @ts-ignore - Drizzle ORM count() returns Number type, not number
-  const publishedCount = (statusStats?.find((s: any) => s.status === '已发布')?.count as any) || 0;
-  // @ts-ignore - Drizzle ORM count() returns Number type, not number
-  const completedCount = (progressStats?.find((p: any) => p.progress === '已完成')?.count as any) || 0;
-  // @ts-ignore - Drizzle ORM count() returns Number type, not number
-  const notPublishedCount = (statusStats?.find((s: any) => s.status === '未发布')?.count as any) || 0;
-  // @ts-ignore - Drizzle ORM count() returns Number type, not number
-  const rejectedCount = (statusStats?.find((s: any) => s.status === '否决')?.count as any) || 0;
-  // @ts-ignore - Drizzle ORM count() returns Number type, not number
-  const inProgressCount = (progressStats?.find((p: any) => p.progress === '进行中')?.count as any) || 0;
-  // @ts-ignore - Drizzle ORM count() returns Number type, not number
-  const pausedCount = (progressStats?.find((p: any) => p.progress === '已暂停')?.count as any) || 0;
-  // @ts-ignore - Drizzle ORM count() returns Number type, not number
-  const notStartedCount = (progressStats?.find((p: any) => p.progress === '未开始')?.count as any) || 0;
+  const publishedCount = (statusStatsObj as any)['已发布'] || 0;
+  const completedCount = (progressStatsObj as any)['已完成'] || 0;
+  const notPublishedCount = (statusStatsObj as any)['未发布'] || 0;
+  const rejectedCount = (statusStatsObj as any)['否决'] || 0;
+  const inProgressCount = (progressStatsObj as any)['进行中'] || 0;
+  const pausedCount = (progressStatsObj as any)['已暂停'] || 0;
+  const notStartedCount = (progressStatsObj as any)['未开始'] || 0;
   
   const completionRate = totalTopics > 0
     ? ((completedCount / totalTopics) * 100).toFixed(1)

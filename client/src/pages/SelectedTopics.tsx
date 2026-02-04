@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { Edit, BarChart3, Trash2, Filter } from "lucide-react";
+import { Edit, BarChart3, Trash2, Filter, Zap } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
@@ -226,9 +226,28 @@ export default function SelectedTopics() {
           {/* 筛选区域 */}
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="flex items-center text-lg">
-                <Filter className="w-5 h-5 mr-2" />
-                筛选条件
+              <CardTitle className="flex items-center justify-between text-lg">
+                <div className="flex items-center">
+                  <Filter className="w-5 h-5 mr-2" />
+                  筛选条件
+                </div>
+                {/* 快捷筛选按钮 */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  onClick={() => {
+                    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+                    setSelectedMonth(currentMonth);
+                    setFilters({
+                      ...filters,
+                      status: "未发布",
+                    });
+                  }}
+                >
+                  <Zap className="w-4 h-4" />
+                  本月未发布
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>

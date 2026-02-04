@@ -414,6 +414,7 @@ export default function Personal() {
                   <TableRow>
                     <TableHead>选题内容</TableHead>
                     <TableHead>建议形式</TableHead>
+                    <TableHead>领导点评</TableHead>
                     <TableHead>进度</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead>创建时间</TableHead>
@@ -427,9 +428,22 @@ export default function Personal() {
                         <div className="line-clamp-2">{topic.content}</div>
                       </TableCell>
                       <TableCell>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                          {topic.suggestedFormat}
-                        </span>
+                        {topic.suggestion ? (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                            {topic.suggestion}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-xs">
+                        {topic.leaderComment ? (
+                          <div className="line-clamp-2 text-sm text-gray-700">
+                            {topic.leaderComment}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 rounded text-xs ${

@@ -1030,3 +1030,10 @@
 ✅ GitHub Actions 工作流已配置
 ✅ 所有 18 个 GitHub Secrets 已手动添加完成
 ⏳ 等待推送代码触发首次部署
+
+
+## 新问题：GitHub Actions 工作流文件未推送，网站无法访问
+
+- [x] 诊断为什么 .github/workflows/deploy.yml 文件没有被推送到远程仓库
+- [x] 创建手动部署脚本和详细部署指南
+- [ ] 验证网站可以正常访问（http://106.54.161.236:3000）

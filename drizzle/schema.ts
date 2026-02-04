@@ -16,6 +16,7 @@ export const users = mysqlTable("users", {
   
   // 系统字段
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  status: mysqlEnum("status", ["active", "suspended"]).default("active").notNull(), // 用户状态：active=正常，suspended=暂停填写
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

@@ -101,6 +101,83 @@ export const appRouter = router({
         });
         return { success: true };
       }),
+
+    updateInfo: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        name: z.string().min(1),
+        username: z.string().min(2).max(50),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await db.updateUserInfo(input.userId, input.name, input.username);
+        await db.createSystemLog({
+          userId: ctx.user.id,
+          action: "UPDATE_USER_INFO",
+          target: `User ${input.userId}`,
+          details: { name: input.name, username: input.username },
+        });
+        return { success: true };
+      }),
+
+    updatePassword: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        newPassword: z.string().min(6),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await db.updateUserPassword(input.userId, input.newPassword);
+        await db.createSystemLog({
+          userId: ctx.user.id,
+          action: "UPDATE_USER_PASSWORD",
+          target: `User ${input.userId}`,
+          details: {},
+        });
+        return { success: true };
+      }),
+
+    delete: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.userId === ctx.user.id) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: '不能删除自己的账户',
+          });
+        }
+
+        await db.deleteUser(input.userId);
+        await db.createSystemLog({
+          userId: ctx.user.id,
+          action: "DELETE_USER",
+          target: `User ${input.userId}`,
+          details: {},
+        });
+        return { success: true };
+      }),
+
+    toggleStatus: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.userId === ctx.user.id) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: '不能修改自己的状态',
+          });
+        }
+
+        const newStatus = await db.toggleUserStatus(input.userId);
+        await db.createSystemLog({
+          userId: ctx.user.id,
+          action: "TOGGLE_USER_STATUS",
+          target: `User ${input.userId}`,
+          details: { newStatus },
+        });
+        return { success: true, newStatus };
+      }),
   }),
 
   // 选题提交

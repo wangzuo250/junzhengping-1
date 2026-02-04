@@ -23,8 +23,8 @@ export default function Navigation() {
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       toast.success("已退出登录");
-      // 刷新当前页面，不跳转到首页
-      window.location.reload();
+      // 跳转到首页，避免刷新后自动跳转到 Manus 登录页
+      window.location.href = "/";
     },
   });
 

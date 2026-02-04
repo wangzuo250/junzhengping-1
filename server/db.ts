@@ -140,6 +140,43 @@ export async function updateUserRole(userId: number, role: "user" | "admin") {
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
 
+export async function updateUserInfo(userId: number, name: string, username: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(users).set({ name, username }).where(eq(users.id, userId));
+}
+
+export async function updateUserPassword(userId: number, newPassword: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const bcrypt = await import("bcryptjs");
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await db.update(users).set({ password: hashedPassword }).where(eq(users.id, userId));
+}
+
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(users).where(eq(users.id, userId));
+}
+
+export async function toggleUserStatus(userId: number): Promise<"active" | "suspended"> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.length === 0) {
+    throw new Error("User not found");
+  }
+
+  const newStatus = user[0].status === "active" ? "suspended" : "active";
+  await db.update(users).set({ status: newStatus }).where(eq(users.id, userId));
+  return newStatus;
+}
+
 // ============ 收集表相关 ============
 
 export async function getOrCreateCollectionForm(formDate: string, createdBy: number): Promise<CollectionForm> {

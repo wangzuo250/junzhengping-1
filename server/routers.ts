@@ -221,6 +221,8 @@ export const appRouter = router({
           monthKey,
           sourceSubmissionId: topic.submissionId,
           createdBy: ctx.user.id,
+          progress: '未开始',
+          status: '未发布',
         });
 
         await db.createSystemLog({

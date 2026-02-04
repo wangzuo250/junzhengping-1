@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { Edit, BarChart3, Trash2 } from "lucide-react";
+import { Edit, BarChart3, Trash2, Filter } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
@@ -23,6 +24,15 @@ export default function SelectedTopics() {
     suggestion: "",
   });
   const [selectedSubmitters, setSelectedSubmitters] = useState<number[]>([]);
+  
+  // 筛选状态
+  const [filters, setFilters] = useState({
+    submitter: "",
+    startDate: "",
+    endDate: "",
+    progress: "" as "" | "未开始" | "进行中" | "已完成" | "已暂停",
+    status: "" as "" | "未发布" | "已发布" | "否决",
+  });
   const [editForm, setEditForm] = useState({
     leaderComment: "",
     creators: "",
@@ -126,14 +136,59 @@ export default function SelectedTopics() {
     );
   }
 
+  // 筛选和排序
+  const filteredAndSortedTopics = topics
+    ?.filter((topic: any) => {
+      // 按月份筛选
+      if (selectedMonth && topic.monthKey !== selectedMonth) return false;
+      
+      // 按提报人筛选
+      if (filters.submitter && !topic.submitters.includes(filters.submitter)) return false;
+      
+      // 按时间筛选
+      if (filters.startDate && topic.selectedDate < filters.startDate) return false;
+      if (filters.endDate && topic.selectedDate > filters.endDate) return false;
+      
+      // 按进度筛选
+      if (filters.progress && topic.progress !== filters.progress) return false;
+      
+      // 按状态筛选
+      if (filters.status && topic.status !== filters.status) return false;
+      
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      // 第一优先级：状态（未发布 > 已发布/否决）
+      const statusPriority: Record<string, number> = {
+        '未发布': 0,
+        '已发布': 1,
+        '否决': 1,
+      };
+      const statusDiff = statusPriority[a.status] - statusPriority[b.status];
+      if (statusDiff !== 0) return statusDiff;
+      
+      // 第二优先级：进度（未开始/进行中 > 已完成/已暂停）
+      const progressPriority: Record<string, number> = {
+        '未开始': 0,
+        '进行中': 0,
+        '已完成': 1,
+        '已暂停': 1,
+      };
+      const progressDiff = progressPriority[a.progress] - progressPriority[b.progress];
+      if (progressDiff !== 0) return progressDiff;
+      
+      // 第三优先级：时间（最新的在前）
+      return new Date(b.selectedDate).getTime() - new Date(a.selectedDate).getTime();
+    }) || [];
+  
   // 按月份分组
-  const groupedTopics = topics?.reduce((acc: Record<string, any[]>, topic: any) => {
+  const groupedTopics = filteredAndSortedTopics.reduce((acc: Record<string, any[]>, topic: any) => {
     if (!acc[topic.monthKey]) {
       acc[topic.monthKey] = [];
     }
     acc[topic.monthKey].push(topic);
     return acc;
-  }, {} as Record<string, typeof topics>) || {};
+  }, {} as Record<string, any[]>);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,20 +217,119 @@ export default function SelectedTopics() {
             </div>
           </div>
 
-          <div className="mb-6">
-            <Label>筛选月份</Label>
-            <Select value={selectedMonth || "all"} onValueChange={(v) => setSelectedMonth(v === "all" ? undefined : v)}>
-              <SelectTrigger className="w-48 mt-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部月份</SelectItem>
-                {monthKeys?.map((key: string) => (
-                  <SelectItem key={key} value={key}>{key}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* 筛选区域 */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg">
+                <Filter className="w-5 h-5 mr-2" />
+                筛选条件
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* 月份筛选 */}
+                <div>
+                  <Label>月份</Label>
+                  <Select value={selectedMonth || "all"} onValueChange={(v) => setSelectedMonth(v === "all" ? undefined : v)}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部月份</SelectItem>
+                      {monthKeys?.map((key: string) => (
+                        <SelectItem key={key} value={key}>{key}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 提报人筛选 */}
+                <div>
+                  <Label>提报人</Label>
+                  <Input
+                    className="mt-2"
+                    placeholder="输入提报人姓名"
+                    value={filters.submitter}
+                    onChange={(e) => setFilters({ ...filters, submitter: e.target.value })}
+                  />
+                </div>
+
+                {/* 进度筛选 */}
+                <div>
+                  <Label>进度</Label>
+                  <Select value={filters.progress} onValueChange={(v: any) => setFilters({ ...filters, progress: v === "all" ? "" : v })}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="全部进度" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部进度</SelectItem>
+                      <SelectItem value="未开始">未开始</SelectItem>
+                      <SelectItem value="进行中">进行中</SelectItem>
+                      <SelectItem value="已完成">已完成</SelectItem>
+                      <SelectItem value="已暂停">已暂停</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 状态筛选 */}
+                <div>
+                  <Label>状态</Label>
+                  <Select value={filters.status} onValueChange={(v: any) => setFilters({ ...filters, status: v === "all" ? "" : v })}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="全部状态" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部状态</SelectItem>
+                      <SelectItem value="未发布">未发布</SelectItem>
+                      <SelectItem value="已发布">已发布</SelectItem>
+                      <SelectItem value="否决">否决</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 开始日期 */}
+                <div>
+                  <Label>开始日期</Label>
+                  <Input
+                    type="date"
+                    className="mt-2"
+                    value={filters.startDate}
+                    onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                  />
+                </div>
+
+                {/* 结束日期 */}
+                <div>
+                  <Label>结束日期</Label>
+                  <Input
+                    type="date"
+                    className="mt-2"
+                    value={filters.endDate}
+                    onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* 清空筛选按钮 */}
+              <div className="mt-4 flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedMonth(undefined);
+                    setFilters({
+                      submitter: "",
+                      startDate: "",
+                      endDate: "",
+                      progress: "",
+                      status: "",
+                    });
+                  }}
+                >
+                  清空筛选
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {Object.keys(groupedTopics).length === 0 ? (
             <Card>

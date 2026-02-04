@@ -281,39 +281,6 @@ export default function TopicForm() {
                 className="bg-muted"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="longTermPlan">长期策划（可选）</Label>
-              <Textarea
-                id="longTermPlan"
-                placeholder="请输入长期策划内容..."
-                value={longTermPlan}
-                onChange={(e) => setLongTermPlan(e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="workSuggestion">工作建议（可选）</Label>
-              <Textarea
-                id="workSuggestion"
-                placeholder="请输入工作建议..."
-                value={workSuggestion}
-                onChange={(e) => setWorkSuggestion(e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="riskWarning">风险提示（可选）</Label>
-              <Textarea
-                id="riskWarning"
-                placeholder="请输入风险提示..."
-                value={riskWarning}
-                onChange={(e) => setRiskWarning(e.target.value)}
-                rows={3}
-              />
-            </div>
           </CardContent>
         </Card>
 
@@ -632,6 +599,47 @@ export default function TopicForm() {
               ))}
             </CardContent>
           )}
+        </Card>
+
+        {/* 其他信息区域 */}
+        <Card className="mb-6 shadow-lg">
+          <CardHeader className="border-l-4 border-l-purple-500">
+            <CardTitle>其他信息（可选）</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="longTermPlan">长期策划</Label>
+              <Textarea
+                id="longTermPlan"
+                placeholder="请输入长期策划内容..."
+                value={longTermPlan}
+                onChange={(e) => setLongTermPlan(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="workSuggestion">工作建议</Label>
+              <Textarea
+                id="workSuggestion"
+                placeholder="请输入工作建议..."
+                value={workSuggestion}
+                onChange={(e) => setWorkSuggestion(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="riskWarning">风险提示</Label>
+              <Textarea
+                id="riskWarning"
+                placeholder="请输入风险提示..."
+                value={riskWarning}
+                onChange={(e) => setRiskWarning(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </CardContent>
         </Card>
 
         {/* 提交按钮 */}

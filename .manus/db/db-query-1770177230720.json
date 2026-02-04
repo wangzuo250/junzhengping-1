@@ -1,0 +1,9 @@
+{
+  "query": "\n-- 删除今天的提交相关数据\nDELETE st FROM submission_topics st\nINNER JOIN submissions s ON st.submissionId = s.id\nINNER JOIN collection_forms cf ON s.collectionFormId = cf.id\nWHERE DATE(cf.formDate) = CURDATE();\n\nDELETE sp FROM submission_projects sp\nINNER JOIN submissions s ON sp.submissionId = s.id\nINNER JOIN collection_forms cf ON s.collectionFormId = cf.id\nWHERE DATE(cf.formDate) = CURDATE();\n\nDELETE s FROM submissions s\nINNER JOIN collection_forms cf ON s.collectionFormId = cf.id\nWHERE DATE(cf.formDate) = CURDATE();\n\nDELETE FROM collection_forms WHERE DATE(formDate) = CURDATE();\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2QT84xGnBKUugNF.root --database g5LX4x79UdX68RxpKYLQF9 --execute \n-- 删除今天的提交相关数据\nDELETE st FROM submission_topics st\nINNER JOIN submissions s ON st.submissionId = s.id\nINNER JOIN collection_forms cf ON s.collectionFormId = cf.id\nWHERE DATE(cf.formDate) = CURDATE();\n\nDELETE sp FROM submission_projects sp\nINNER JOIN submissions s ON sp.submissionId = s.id\nINNER JOIN collection_forms cf ON s.collectionFormId = cf.id\nWHERE DATE(cf.formDate) = CURDATE();\n\nDELETE s FROM submissions s\nINNER JOIN collection_forms cf ON s.collectionFormId = cf.id\nWHERE DATE(cf.formDate) = CURDATE();\n\nDELETE FROM collection_forms WHERE DATE(formDate) = CURDATE();\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 118
+}

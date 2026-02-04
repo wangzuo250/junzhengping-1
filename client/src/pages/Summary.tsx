@@ -146,7 +146,7 @@ export default function Summary() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-4">
-                {data.submissions.map((submission) => (
+                {Array.from(new Map(data.submissions.map(s => [s.userId, s])).values()).map((submission) => (
                   <div key={submission.userId} className="flex items-center space-x-2">
                     <Checkbox
                       id={`user-${submission.userId}`}

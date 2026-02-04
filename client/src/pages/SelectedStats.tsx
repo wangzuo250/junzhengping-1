@@ -14,11 +14,11 @@ export default function SelectedStats() {
   const { user, isAuthenticated } = useAuth();
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
 
-  const { data: monthKeys } = trpc.selectedTopics.getMonthKeys.useQuery();
-  const { data: overview } = trpc.stats.overview.useQuery(undefined, {
-    enabled: user?.role === "admin",
-  });
-  const { data: contribution } = trpc.stats.monthlyContribution.useQuery(
+  const { data: topics } = trpc.selectedTopics.listAll.useQuery();
+  const monthKeys = Array.from(new Set(topics?.map((t: any) => t.monthKey) || [])).sort((a, b) => b.localeCompare(a));
+  const { data: progressStats } = trpc.selectedTopics.progressStats.useQuery();
+  const { data: statusStats } = trpc.selectedTopics.statusStats.useQuery();
+  const { data: contribution } = trpc.selectedTopics.monthlyContribution.useQuery(
     { monthKeys: selectedMonths },
     { enabled: selectedMonths.length > 0 }
   );
@@ -29,8 +29,8 @@ export default function SelectedStats() {
     );
   };
 
-  const exportMutation = trpc.export.excel.useMutation({
-    onSuccess: (result) => {
+  const exportMutation = trpc.selectedTopics.exportReport.useMutation({
+    onSuccess: (result: any) => {
       // 将 base64 转换为 Blob 并下载
       const byteCharacters = atob(result.data);
       const byteNumbers = new Array(byteCharacters.length);
@@ -51,7 +51,7 @@ export default function SelectedStats() {
       
       toast.success("导出成功！");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`导出失败：${error.message}`);
     },
   });
@@ -80,12 +80,28 @@ export default function SelectedStats() {
     );
   }
 
-  const completionRate = overview && overview.total > 0
-    ? ((overview.completed / overview.total) * 100).toFixed(1)
+  const totalTopics = topics?.length || 0;
+  // @ts-ignore - Drizzle ORM count() returns Number type, not number
+  const publishedCount = (statusStats?.find((s: any) => s.status === '已发布')?.count as any) || 0;
+  // @ts-ignore - Drizzle ORM count() returns Number type, not number
+  const completedCount = (progressStats?.find((p: any) => p.progress === '已完成')?.count as any) || 0;
+  // @ts-ignore - Drizzle ORM count() returns Number type, not number
+  const notPublishedCount = (statusStats?.find((s: any) => s.status === '未发布')?.count as any) || 0;
+  // @ts-ignore - Drizzle ORM count() returns Number type, not number
+  const rejectedCount = (statusStats?.find((s: any) => s.status === '否决')?.count as any) || 0;
+  // @ts-ignore - Drizzle ORM count() returns Number type, not number
+  const inProgressCount = (progressStats?.find((p: any) => p.progress === '进行中')?.count as any) || 0;
+  // @ts-ignore - Drizzle ORM count() returns Number type, not number
+  const pausedCount = (progressStats?.find((p: any) => p.progress === '已暂停')?.count as any) || 0;
+  // @ts-ignore - Drizzle ORM count() returns Number type, not number
+  const notStartedCount = (progressStats?.find((p: any) => p.progress === '未开始')?.count as any) || 0;
+  
+  const completionRate = totalTopics > 0
+    ? ((completedCount / totalTopics) * 100).toFixed(1)
     : "0.0";
   
-  const publishRate = overview && overview.total > 0
-    ? ((overview.published / overview.total) * 100).toFixed(1)
+  const publishRate = totalTopics > 0
+    ? ((publishedCount / totalTopics) * 100).toFixed(1)
     : "0.0";
 
   return (
@@ -112,7 +128,7 @@ export default function SelectedStats() {
                   <Clock className="h-4 w-4 text-gray-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{overview?.notStarted || 0}</div>
+                  <div className="text-2xl font-bold">{notStartedCount}</div>
                 </CardContent>
               </Card>
 
@@ -122,7 +138,7 @@ export default function SelectedStats() {
                   <TrendingUp className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{overview?.inProgress || 0}</div>
+                  <div className="text-2xl font-bold">{inProgressCount}</div>
                 </CardContent>
               </Card>
 
@@ -132,7 +148,7 @@ export default function SelectedStats() {
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{overview?.completed || 0}</div>
+                  <div className="text-2xl font-bold">{completedCount}</div>
                 </CardContent>
               </Card>
 
@@ -142,7 +158,7 @@ export default function SelectedStats() {
                   <Pause className="h-4 w-4 text-red-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{overview?.paused || 0}</div>
+                  <div className="text-2xl font-bold">{pausedCount}</div>
                 </CardContent>
               </Card>
             </div>
@@ -154,7 +170,7 @@ export default function SelectedStats() {
                   <Clock className="h-4 w-4 text-gray-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{overview?.notPublished || 0}</div>
+                  <div className="text-2xl font-bold">{notPublishedCount}</div>
                 </CardContent>
               </Card>
 
@@ -164,7 +180,7 @@ export default function SelectedStats() {
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{overview?.published || 0}</div>
+                  <div className="text-2xl font-bold">{publishedCount}</div>
                   <p className="text-xs text-muted-foreground">
                     发布率 {publishRate}%
                   </p>
@@ -177,7 +193,7 @@ export default function SelectedStats() {
                   <XCircle className="h-4 w-4 text-red-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{overview?.rejected || 0}</div>
+                  <div className="text-2xl font-bold">{rejectedCount}</div>
                 </CardContent>
               </Card>
             </div>
@@ -193,7 +209,7 @@ export default function SelectedStats() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-4">
-                  {monthKeys?.map(month => (
+                  {monthKeys?.map((month: string) => (
                     <div key={month} className="flex items-center space-x-2">
                       <Checkbox
                         id={`month-${month}`}
@@ -218,8 +234,7 @@ export default function SelectedStats() {
             ) : contribution ? (
               <Card>
                 <CardContent className="pt-6">
-                  {contribution.isLimited && (
-                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+                  {user?.role !== 'admin' && contribution && contribution.length >= 5 && (                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
                       普通用户仅显示前5名，管理员可查看完整排行榜
                     </div>
                   )}
@@ -236,14 +251,14 @@ export default function SelectedStats() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {contribution.data.length === 0 ? (
+                      {contribution.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center text-gray-500">
                             暂无数据
                           </TableCell>
                         </TableRow>
                       ) : (
-                        contribution.data.map((item, index) => (
+                        contribution?.map((item: any, index: number) => (
                           <TableRow key={item.name}>
                             <TableCell className="font-medium">#{index + 1}</TableCell>
                             <TableCell>{item.name}</TableCell>

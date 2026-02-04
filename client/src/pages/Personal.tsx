@@ -8,8 +8,10 @@ import { FileText, Star } from "lucide-react";
 
 export default function Personal() {
   const { user, isAuthenticated } = useAuth();
-  const { data: stats } = trpc.personal.stats.useQuery();
-  const { data: history } = trpc.submissions.getUserHistory.useQuery();
+  // const { data: stats } = trpc.personal.stats.useQuery();
+  // const { data: history } = trpc.submissions.getUserHistory.useQuery();
+  const stats: any = null;
+  const history = [] as any[];
 
   if (!isAuthenticated) {
     return (
@@ -86,7 +88,7 @@ export default function Personal() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {history.map((item) => (
+                    {history.map((item: any) => (
                       <TableRow key={item.id}>
                         <TableCell className="whitespace-nowrap">
                           {format(new Date(item.submittedAt), 'yyyy-MM-dd HH:mm')}

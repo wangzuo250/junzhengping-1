@@ -195,6 +195,85 @@ export const appRouter = router({
 
   // 入选选题管理
   selectedTopics: router({
+    // 从汇总选题创建入选（管理员专用）
+    addFromSubmission: adminProcedure
+      .input(z.object({
+        submissionTopicId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // 获取原始选题信息
+        const topic = await db.getSubmissionTopicById(input.submissionTopicId);
+        if (!topic) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: '选题不存在',
+          });
+        }
+
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const monthKey = format(new Date(), 'yyyy-MM');
+
+        const id = await db.createSelectedTopic({
+          content: topic.content || '',
+          suggestion: topic.suggestedFormat || null,
+          submitters: String(topic.submitterId),
+          selectedDate: new Date(today),
+          monthKey,
+          sourceSubmissionId: topic.submissionId,
+          createdBy: ctx.user.id,
+        });
+
+        await db.createSystemLog({
+          userId: ctx.user.id,
+          action: "ADD_SELECTED_FROM_SUBMISSION",
+          target: `Topic ${id}`,
+          details: { submissionTopicId: input.submissionTopicId },
+        });
+
+        return { success: true, id };
+      }),
+
+    // 直接新建入选选题（管理员专用）
+    create: adminProcedure
+      .input(z.object({
+        content: z.string().min(1),
+        suggestion: z.string().optional(),
+        submitters: z.string().min(1),
+        leaderComment: z.string().optional(),
+        creators: z.string().optional(),
+        progress: z.enum(["未开始", "进行中", "已完成", "已暂停"]).optional(),
+        status: z.enum(["未发布", "已发布", "否决"]).optional(),
+        remark: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const monthKey = format(new Date(), 'yyyy-MM');
+
+        const id = await db.createSelectedTopic({
+          content: input.content,
+          suggestion: input.suggestion || null,
+          submitters: input.submitters,
+          selectedDate: new Date(today),
+          monthKey,
+          sourceSubmissionId: null,
+          createdBy: ctx.user.id,
+          leaderComment: input.leaderComment || null,
+          creators: input.creators || null,
+          progress: input.progress || '未开始',
+          status: input.status || '未发布',
+          remark: input.remark || null,
+        });
+
+        await db.createSystemLog({
+          userId: ctx.user.id,
+          action: "CREATE_SELECTED_TOPIC",
+          target: `Topic ${id}`,
+          details: { content: input.content },
+        });
+
+        return { success: true, id };
+      }),
+
     add: adminProcedure
       .input(z.object({
         content: z.string().min(1),

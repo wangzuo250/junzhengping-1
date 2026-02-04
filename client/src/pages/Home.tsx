@@ -8,7 +8,7 @@ import { Link } from "wouter";
 
 export default function Home() {
   const { user, isAuthenticated, loading } = useAuth();
-  const { data: todayStats } = trpc.submissions.getTodayStats.useQuery();
+  const { data: todayStats } = trpc.submissions.todayStats.useQuery();
 
   return (
     <div className="min-h-screen bg-gray-50">

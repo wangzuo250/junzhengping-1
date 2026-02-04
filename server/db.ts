@@ -213,6 +213,34 @@ export async function createSubmissionTopics(topics: InsertSubmissionTopic[]) {
 }
 
 /**
+ * 根据ID获取单条选题记录（含提交人信息）
+ */
+export async function getSubmissionTopicById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select({
+      topic: submissionTopics,
+      submission: submissions,
+      user: users,
+    })
+    .from(submissionTopics)
+    .leftJoin(submissions, eq(submissionTopics.submissionId, submissions.id))
+    .leftJoin(users, eq(submissions.userId, users.id))
+    .where(eq(submissionTopics.id, id))
+    .limit(1);
+
+  if (result.length === 0) return null;
+
+  return {
+    ...result[0].topic,
+    submitterId: result[0].submission?.userId || 0,
+    submitterName: result[0].user?.name || result[0].user?.username || '未知用户',
+  };
+}
+
+/**
  * 批量创建项目进度子记录
  */
 export async function createSubmissionProjects(projects: InsertSubmissionProject[]) {

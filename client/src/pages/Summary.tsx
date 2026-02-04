@@ -40,6 +40,22 @@ export default function Summary() {
     endDate: startDate === endDate ? undefined : endDate 
   });
 
+  const addToSelectedMutation = trpc.selectedTopics.addFromSubmission.useMutation({
+    onSuccess: () => {
+      toast.success("已成功添加到入选选题");
+    },
+    onError: (error) => {
+      toast.error(error.message || "添加失败");
+    },
+  });
+
+  const handleAddToSelected = (submissionTopicId: number) => {
+    if (!window.confirm("确认将此选题添加到入选选题？")) {
+      return;
+    }
+    addToSelectedMutation.mutate({ submissionTopicId });
+  };
+
   // 当URL日期参数变化时，更新选择的日期
   useEffect(() => {
     if (urlDate) {
@@ -302,6 +318,7 @@ export default function Summary() {
                         <TableHead>长期策划</TableHead>
                         <TableHead>工作建议</TableHead>
                         <TableHead>风险提示</TableHead>
+                        {user?.role === 'admin' && <TableHead>操作</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -383,6 +400,20 @@ export default function Summary() {
                                     {submission.riskWarning || '-'}
                                   </TableCell>
                                 </>
+                              )}
+                              {user?.role === 'admin' && topic && (
+                                <TableCell className="align-top">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleAddToSelected(topic.id)}
+                                  >
+                                    添加到入选
+                                  </Button>
+                                </TableCell>
+                              )}
+                              {user?.role === 'admin' && !topic && (
+                                <TableCell className="align-top">-</TableCell>
                               )}
                             </TableRow>
                           );

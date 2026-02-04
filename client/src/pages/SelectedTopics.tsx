@@ -16,6 +16,12 @@ export default function SelectedTopics() {
   const { user, isAuthenticated } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>(undefined);
   const [editingTopic, setEditingTopic] = useState<any>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    content: "",
+    suggestion: "",
+    submitters: "",
+  });
   const [editForm, setEditForm] = useState({
     leaderComment: "",
     creators: "",
@@ -26,9 +32,21 @@ export default function SelectedTopics() {
     suggestion: "",
   });
 
-  const { data: monthKeys } = trpc.selectedTopics.getMonthKeys.useQuery();
-  const { data: topics, refetch } = trpc.selectedTopics.list.useQuery({ monthKey: selectedMonth });
+  const { data: topics, refetch } = trpc.selectedTopics.listAll.useQuery();
+  const monthKeys = Array.from(new Set(topics?.map((t: any) => t.monthKey) || [])).sort((a, b) => b.localeCompare(a));
   
+  const createMutation = trpc.selectedTopics.create.useMutation({
+    onSuccess: () => {
+      toast.success("创建成功");
+      setShowCreateDialog(false);
+      setCreateForm({ content: "", suggestion: "", submitters: "" });
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(error.message || "创建失败");
+    },
+  });
+
   const updateMutation = trpc.selectedTopics.update.useMutation({
     onSuccess: () => {
       toast.success("更新成功");
@@ -106,7 +124,7 @@ export default function SelectedTopics() {
   }
 
   // 按月份分组
-  const groupedTopics = topics?.reduce((acc, topic) => {
+  const groupedTopics = topics?.reduce((acc: Record<string, any[]>, topic: any) => {
     if (!acc[topic.monthKey]) {
       acc[topic.monthKey] = [];
     }
@@ -122,16 +140,23 @@ export default function SelectedTopics() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold text-gray-900">入选选题</h1>
-            {user?.role === "admin" && (
-              <Button asChild>
-                <Link href="/selected/stats">
-                  <a className="flex items-center">
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    统计汇总
-                  </a>
-                </Link>
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {user?.role === "admin" && (
+                <>
+                  <Button onClick={() => setShowCreateDialog(true)}>
+                    新建入选选题
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/selected/stats">
+                      <a className="flex items-center">
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        统计汇总
+                      </a>
+                    </Link>
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="mb-6">
@@ -142,7 +167,7 @@ export default function SelectedTopics() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部月份</SelectItem>
-                {monthKeys?.map(key => (
+                {monthKeys?.map((key: string) => (
                   <SelectItem key={key} value={key}>{key}</SelectItem>
                 ))}
               </SelectContent>
@@ -156,13 +181,13 @@ export default function SelectedTopics() {
               </CardContent>
             </Card>
           ) : (
-            Object.entries(groupedTopics)
+            (Object.entries(groupedTopics) as [string, any[]][])
               .sort(([a], [b]) => b.localeCompare(a))
               .map(([monthKey, monthTopics]) => (
                 <div key={monthKey} className="mb-8">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">{monthKey}</h2>
                   <div className="space-y-4">
-                    {monthTopics.map((topic) => (
+                    {monthTopics.map((topic: any) => (
                       <Card key={topic.id}>
                         <CardHeader>
                           <div className="flex items-start justify-between">
@@ -337,6 +362,67 @@ export default function SelectedTopics() {
               </Button>
               <Button onClick={handleSave} disabled={updateMutation.isPending}>
                 {updateMutation.isPending ? "保存中..." : "保存"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 创建对话框 */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>新建入选选题</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>选题内容 *</Label>
+              <Textarea
+                value={createForm.content}
+                onChange={(e) => setCreateForm({ ...createForm, content: e.target.value })}
+                rows={3}
+                className="mt-2"
+                placeholder="请输入选题内容"
+              />
+            </div>
+            <div>
+              <Label>建议形式</Label>
+              <Textarea
+                value={createForm.suggestion}
+                onChange={(e) => setCreateForm({ ...createForm, suggestion: e.target.value })}
+                className="mt-2"
+                placeholder="请输入建议形式（可选）"
+              />
+            </div>
+            <div>
+              <Label>提报人 *</Label>
+              <Textarea
+                value={createForm.submitters}
+                onChange={(e) => setCreateForm({ ...createForm, submitters: e.target.value })}
+                className="mt-2"
+                placeholder="请输入提报人姓名"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                取消
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (!createForm.content.trim()) {
+                    toast.error("请输入选题内容");
+                    return;
+                  }
+                  if (!createForm.submitters.trim()) {
+                    toast.error("请输入提报人");
+                    return;
+                  }
+                  createMutation.mutate(createForm);
+                }} 
+                disabled={createMutation.isPending}
+              >
+                {createMutation.isPending ? "创建中..." : "创建"}
               </Button>
             </div>
           </div>

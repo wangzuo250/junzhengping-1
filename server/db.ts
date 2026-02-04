@@ -514,6 +514,19 @@ export async function getAllSelectedTopics() {
     .orderBy(desc(selectedTopics.selectedDate));
 }
 
+export async function getSelectedTopicBySourceId(sourceSubmissionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select()
+    .from(selectedTopics)
+    .where(eq(selectedTopics.sourceSubmissionId, sourceSubmissionId))
+    .limit(1);
+  
+  return result[0] || null;
+}
+
 export async function updateSelectedTopic(id: number, data: Partial<SelectedTopic>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

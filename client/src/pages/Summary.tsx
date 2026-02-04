@@ -22,6 +22,78 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+// 入选状态单元格组件
+function SelectedStatusCell({ topicId }: { topicId: number }) {
+  const { data: checkResult } = trpc.selectedTopics.checkSelected.useQuery({ submissionTopicId: topicId });
+  const removeFromSelectedMutation = trpc.selectedTopics.removeFromSelected.useMutation({
+    onSuccess: () => {
+      toast.success("已移除入选");
+    },
+    onError: (error) => {
+      toast.error(error.message || "移除失败");
+    },
+  });
+  const addToSelectedMutation = trpc.selectedTopics.addFromSubmission.useMutation({
+    onSuccess: () => {
+      toast.success("已成功添加到入选选题");
+    },
+    onError: (error) => {
+      toast.error(error.message || "添加失败");
+    },
+  });
+
+  const handleAddToSelected = () => {
+    if (!window.confirm("确认将此选题添加到入选选题？")) {
+      return;
+    }
+    addToSelectedMutation.mutate({ submissionTopicId: topicId });
+  };
+
+  const handleRemoveFromSelected = () => {
+    if (!window.confirm("确认移除此入选选题？")) {
+      return;
+    }
+    removeFromSelectedMutation.mutate({ submissionTopicId: topicId });
+  };
+
+  if (!checkResult) {
+    return <div className="text-sm text-gray-400">加载中...</div>;
+  }
+
+  if (checkResult.isSelected) {
+    return (
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled
+          className="bg-gray-100 text-gray-500 cursor-not-allowed"
+        >
+          已入选
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleRemoveFromSelected}
+          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+        >
+          移除
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={handleAddToSelected}
+    >
+      添加到入选
+    </Button>
+  );
+}
+
 export default function Summary() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
@@ -43,9 +115,20 @@ export default function Summary() {
   const addToSelectedMutation = trpc.selectedTopics.addFromSubmission.useMutation({
     onSuccess: () => {
       toast.success("已成功添加到入选选题");
+      refetch(); // 刷新数据
     },
     onError: (error) => {
       toast.error(error.message || "添加失败");
+    },
+  });
+
+  const removeFromSelectedMutation = trpc.selectedTopics.removeFromSelected.useMutation({
+    onSuccess: () => {
+      toast.success("已移除入选");
+      refetch(); // 刷新数据
+    },
+    onError: (error) => {
+      toast.error(error.message || "移除失败");
     },
   });
 
@@ -54,6 +137,13 @@ export default function Summary() {
       return;
     }
     addToSelectedMutation.mutate({ submissionTopicId });
+  };
+
+  const handleRemoveFromSelected = (submissionTopicId: number) => {
+    if (!window.confirm("确认移除此入选选题？")) {
+      return;
+    }
+    removeFromSelectedMutation.mutate({ submissionTopicId });
   };
 
   // 当URL日期参数变化时，更新选择的日期
@@ -403,13 +493,7 @@ export default function Summary() {
                               )}
                               {user?.role === 'admin' && topic && (
                                 <TableCell className="align-top">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleAddToSelected(topic.id)}
-                                  >
-                                    添加到入选
-                                  </Button>
+                                  <SelectedStatusCell topicId={topic.id} />
                                 </TableCell>
                               )}
                               {user?.role === 'admin' && !topic && (

@@ -198,12 +198,12 @@ export const appRouter = router({
           relatedLink: z.string().optional(),
         })).min(1, "请至少添加一条选题"),
         
-        // 项目进度列表（至少一条）
+        // 项目进度列表（可选）
         projects: z.array(z.object({
           projectName: z.string().optional(),
           progress: z.enum(["未开始", "已开始", "已结束", "暂停"]).optional(),
           note: z.string().optional(),
-        })).min(1, "请至少添加一条项目进度"),
+        })).optional().default([]),
       }))
       .mutation(async ({ input, ctx }) => {
         const today = format(new Date(), 'yyyy-MM-dd');
@@ -261,17 +261,80 @@ export const appRouter = router({
       return await db.getTodayStats();
     }),
 
-    myHistory: protectedProcedure.query(async ({ ctx }) => {
-      return await db.getUserSubmissions(ctx.user.id);
-    }),
+    myHistory: protectedProcedure
+      .input(z.object({
+        userId: z.number().optional(),
+      }).optional())
+      .query(async ({ input, ctx }) => {
+        // 如果传入了 userId 且不是当前用户，需要管理员权限
+        const targetUserId = input?.userId || ctx.user.id;
+        if (targetUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: '无权查看其他用户的数据',
+          });
+        }
+        return await db.getUserSubmissions(targetUserId);
+      }),
 
-    myStats: protectedProcedure.query(async ({ ctx }) => {
-      return await db.getUserTotalStats(ctx.user.id);
-    }),
+    myStats: protectedProcedure
+      .input(z.object({
+        userId: z.number().optional(),
+      }).optional())
+      .query(async ({ input, ctx }) => {
+        // 如果传入了 userId 且不是当前用户，需要管理员权限
+        const targetUserId = input?.userId || ctx.user.id;
+        if (targetUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: '无权查看其他用户的数据',
+          });
+        }
+        return await db.getUserTotalStats(targetUserId);
+      }),
   }),
 
   // 入选选题管理
   selectedTopics: router({
+    // 检查选题是否已入选
+    checkSelected: protectedProcedure
+      .input(z.object({
+        submissionTopicId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const selectedTopic = await db.getSelectedTopicBySourceId(input.submissionTopicId);
+        return { 
+          isSelected: !!selectedTopic,
+          selectedTopicId: selectedTopic?.id || null,
+        };
+      }),
+
+    // 移除入选选题（管理员专用）
+    removeFromSelected: adminProcedure
+      .input(z.object({
+        submissionTopicId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const selectedTopic = await db.getSelectedTopicBySourceId(input.submissionTopicId);
+        if (!selectedTopic) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: '该选题未入选',
+          });
+        }
+
+        await db.deleteSelectedTopic(selectedTopic.id);
+
+        await db.createSystemLog({
+          userId: ctx.user.id,
+          action: "REMOVE_FROM_SELECTED",
+          target: `Topic ${selectedTopic.id}`,
+          details: { submissionTopicId: input.submissionTopicId },
+        });
+
+        return { success: true };
+      }),
+
     // 从汇总选题创建入选（管理员专用）
     addFromSubmission: adminProcedure
       .input(z.object({
@@ -494,13 +557,35 @@ export const appRouter = router({
       }),
 
     // 获取个人入选选题
-    myTopics: protectedProcedure.query(async ({ ctx }) => {
-      const allTopics = await db.getAllSelectedTopics();
-      // 筛选包含当前用户姓名的入选选题
-      return allTopics.filter(topic => 
-        topic.submitters && topic.submitters.includes(ctx.user.name || '')
-      );
-    }),
+    myTopics: protectedProcedure
+      .input(z.object({
+        userId: z.number().optional(),
+      }).optional())
+      .query(async ({ input, ctx }) => {
+        // 如果传入了 userId 且不是当前用户，需要管理员权限
+        const targetUserId = input?.userId || ctx.user.id;
+        if (targetUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: '无权查看其他用户的数据',
+          });
+        }
+        
+        // 获取目标用户的姓名
+        const targetUser = await db.getUserById(targetUserId);
+        if (!targetUser) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: '用户不存在',
+          });
+        }
+        
+        const allTopics = await db.getAllSelectedTopics();
+        // 筛选包含目标用户姓名的入选选题
+        return allTopics.filter(topic => 
+          topic.submitters && topic.submitters.includes(targetUser.name || '')
+        );
+      }),
   }),
 
   // 选题管理

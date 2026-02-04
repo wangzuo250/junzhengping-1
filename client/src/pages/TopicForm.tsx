@@ -15,7 +15,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { Plus, Trash2, Send, House, ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 
@@ -79,6 +79,21 @@ export default function TopicForm() {
 
   // 其他类自定义输入
   const [customFormats, setCustomFormats] = useState<Record<string, string>>({});
+
+  // 查询入选选题的项目名称列表（使用 myTopics 查询当前用户的入选选题）
+  const { data: selectedTopicsData } = trpc.selectedTopics.myTopics.useQuery();
+
+  // 提取所有唯一的项目名称
+  const selectedProjectNames = useMemo(() => {
+    if (!selectedTopicsData) return [];
+    const names = new Set<string>();
+    selectedTopicsData.forEach((topic: any) => {
+      if (topic.content) {
+        names.add(topic.content);
+      }
+    });
+    return Array.from(names).sort();
+  }, [selectedTopicsData]);
 
   const submitMutation = trpc.submissions.submit.useMutation({
     onSuccess: (data) => {
@@ -196,10 +211,11 @@ export default function TopicForm() {
       toast.error("请至少添加一条选题");
       return;
     }
-    if (projects.length === 0) {
-      toast.error("请至少添加一个项目进度");
-      return;
-    }
+    // 项目进度改为非必选
+    // if (projects.length === 0) {
+    //   toast.error("请至少添加一个项目进度");
+    //   return;
+    // }
 
     submitMutation.mutate({
       longTermPlan: longTermPlan.trim() || undefined,
@@ -514,9 +530,9 @@ export default function TopicForm() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>项目进度 *</CardTitle>
+                <CardTitle>项目进度</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  至少添加一个项目进度（子字段可选）
+                  可选填写项目进度（子字段可选）
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -561,12 +577,28 @@ export default function TopicForm() {
 
                   <div className="space-y-2">
                     <Label htmlFor={`projectName-${project.id}`}>项目名</Label>
-                    <Input
-                      id={`projectName-${project.id}`}
-                      placeholder="请输入项目名称..."
-                      value={project.projectName}
-                      onChange={(e) => updateProject(project.id, "projectName", e.target.value)}
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id={`projectName-${project.id}`}
+                        placeholder="请输入项目名称..."
+                        value={project.projectName}
+                        onChange={(e) => updateProject(project.id, "projectName", e.target.value)}
+                        className="flex-1"
+                      />
+                      <Select
+                        value=""
+                        onValueChange={(value) => updateProject(project.id, "projectName", value)}
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="从入选选择" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedProjectNames.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="space-y-2">

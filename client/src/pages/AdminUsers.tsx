@@ -174,6 +174,7 @@ export default function AdminUsers() {
                       <TableHead>用户ID</TableHead>
                       <TableHead>姓名</TableHead>
                       <TableHead>用户名</TableHead>
+                      <TableHead>个人空间</TableHead>
                       <TableHead>角色</TableHead>
                       <TableHead>状态</TableHead>
                       <TableHead>注册时间</TableHead>
@@ -187,6 +188,16 @@ export default function AdminUsers() {
                         <TableCell className="font-medium">{u.id}</TableCell>
                         <TableCell>{u.name || "-"}</TableCell>
                         <TableCell>{u.username || "-"}</TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            title="查看个人空间"
+                            onClick={() => window.location.href = `/personal?userId=${u.id}`}
+                          >
+                            <User className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {u.role === "admin" ? (

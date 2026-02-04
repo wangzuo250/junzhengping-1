@@ -25,7 +25,12 @@ const FORMAT_CATEGORIES = {
 
 export default function Personal() {
   const { user, isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  
+  // 获取 URL 参数中的 userId，用于管理员查看其他用户的个人空间
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetUserId = urlParams.get('userId') ? parseInt(urlParams.get('userId')!) : undefined;
+  const isViewingOtherUser = targetUserId && targetUserId !== user?.id;
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editProgressDialogOpen, setEditProgressDialogOpen] = useState(false);
@@ -48,14 +53,23 @@ export default function Personal() {
     note: "",
   });
 
-  // 获取个人统计数据
-  const { data: stats } = trpc.submissions.myStats.useQuery();
+  // 获取个人统计数据（如果是查看其他用户，传入 userId）
+  const { data: stats } = trpc.submissions.myStats.useQuery(
+    targetUserId ? { userId: targetUserId } : undefined,
+    { enabled: isAuthenticated }
+  );
   
   // 获取个人提交历史
-  const { data: history } = trpc.submissions.myHistory.useQuery();
+  const { data: history } = trpc.submissions.myHistory.useQuery(
+    targetUserId ? { userId: targetUserId } : undefined,
+    { enabled: isAuthenticated }
+  );
   
   // 获取个人入选选题
-  const { data: mySelectedTopics } = trpc.selectedTopics.myTopics.useQuery();
+  const { data: mySelectedTopics } = trpc.selectedTopics.myTopics.useQuery(
+    targetUserId ? { userId: targetUserId } : undefined,
+    { enabled: isAuthenticated }
+  );
 
   // 获取 trpc utils
   const utils = trpc.useUtils();
@@ -214,8 +228,14 @@ export default function Personal() {
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">个人空间</h1>
-          <p className="text-gray-600 mt-2">查看您的选题统计和管理您的选题</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isViewingOtherUser ? `用户个人空间` : `个人空间`}
+          </h1>
+          <p className="text-gray-600 mt-2">
+            {isViewingOtherUser 
+              ? `查看用户的选题统计和历史记录` 
+              : `查看您的选题统计和管理您的选题`}
+          </p>
         </div>
 
         {/* 数据看板 */}
@@ -264,17 +284,19 @@ export default function Personal() {
         <Card className="mb-8 border-blue-200 shadow-lg">
           <CardHeader className="bg-blue-50">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-blue-600" />
-                <CardTitle>本日选题</CardTitle>
-              </div>
-              <Button
-                onClick={() => setLocation("/form")}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                新增选题
-              </Button>
+                本日选题
+              </CardTitle>
+              {!isViewingOtherUser && (
+                <Button
+                  onClick={() => setLocation("/form")}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  新增选题
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="pt-6">
@@ -338,23 +360,25 @@ export default function Personal() {
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-2 ml-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(topic)}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(topic)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                             {!isViewingOtherUser && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(topic)}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(topic)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -424,13 +448,15 @@ export default function Personal() {
                         {format(new Date(topic.createdAt), 'yyyy-MM-dd')}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditProgress(topic)}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
+                        {!isViewingOtherUser && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditProgress(topic)}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

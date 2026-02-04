@@ -1,0 +1,60 @@
+{
+  "query": "SELECT * FROM submissions ORDER BY submittedAt DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2QT84xGnBKUugNF.root --database g5LX4x79UdX68RxpKYLQF9 --execute SELECT * FROM submissions ORDER BY submittedAt DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "90002",
+      "userId": "120006",
+      "collectionFormId": "150001",
+      "submittedAt": "2026-02-04 07:03:23",
+      "submitterName": "系统管理员",
+      "longTermPlan": "NULL",
+      "workSuggestion": "NULL",
+      "riskWarning": "NULL"
+    },
+    {
+      "id": "90001",
+      "userId": "60002",
+      "collectionFormId": "120006",
+      "submittedAt": "2026-02-04 06:51:15",
+      "submitterName": "王祚",
+      "longTermPlan": "NULL",
+      "workSuggestion": "NULL",
+      "riskWarning": "NULL"
+    },
+    {
+      "id": "60004",
+      "userId": "60002",
+      "collectionFormId": "120006",
+      "submittedAt": "2026-02-04 04:50:47",
+      "submitterName": "王祚",
+      "longTermPlan": "不死司机",
+      "workSuggestion": "红薯死神",
+      "riskWarning": "不能您四点"
+    },
+    {
+      "id": "60003",
+      "userId": "60002",
+      "collectionFormId": "120006",
+      "submittedAt": "2026-02-04 04:49:29",
+      "submitterName": "王祚",
+      "longTermPlan": "NULL",
+      "workSuggestion": "NULL",
+      "riskWarning": "NULL"
+    },
+    {
+      "id": "60002",
+      "userId": "120002",
+      "collectionFormId": "120006",
+      "submittedAt": "2026-02-04 04:12:22",
+      "submitterName": "李四",
+      "longTermPlan": "NULL",
+      "workSuggestion": "NULL",
+      "riskWarning": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuserId\tcollectionFormId\tsubmittedAt\tsubmitterName\tlongTermPlan\tworkSuggestion\triskWarning\n90002\t120006\t150001\t2026-02-04 07:03:23\t系统管理员\tNULL\tNULL\tNULL\n90001\t60002\t120006\t2026-02-04 06:51:15\t王祚\tNULL\tNULL\tNULL\n60004\t60002\t120006\t2026-02-04 04:50:47\t王祚\t不死司机\t红薯死神\t不能您四点\n60003\t60002\t120006\t2026-02-04 04:49:29\t王祚\tNULL\tNULL\tNULL\n60002\t120002\t120006\t2026-02-04 04:12:22\t李四\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1531
+}

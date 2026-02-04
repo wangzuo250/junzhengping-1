@@ -36,6 +36,13 @@
       "when": 1770192559603,
       "tag": "0004_lying_marten_broadcloak",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1770227526253,
+      "tag": "0005_panoramic_magik",
+      "breakpoints": true
     }
   ]
 }

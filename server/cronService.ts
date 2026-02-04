@@ -80,12 +80,7 @@ async function clearTodayData() {
     // 5. 删除今天的收集表
     const deletedForms = await db
       .delete(collectionForms)
-      .where(
-        and(
-          gte(collectionForms.formDate, todayStart),
-          lt(collectionForms.formDate, todayEnd)
-        )
-      );
+      .where(eq(collectionForms.formDate, today));
 
     console.log(`[CronService] Cleared data for ${today}:`);
     console.log(`  - Submissions: ${submissionIds.length}`);
@@ -100,7 +95,7 @@ async function clearTodayData() {
     const tomorrowTitle = `${format(tomorrow, 'yyyy年MM月dd日')} 选题收集`;
 
     await db.insert(collectionForms).values({
-      formDate: new Date(tomorrowDate),
+      formDate: tomorrowDate,
       title: tomorrowTitle,
       createdBy: 1, // 系统创建
     });

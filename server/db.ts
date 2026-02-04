@@ -189,7 +189,7 @@ export async function getOrCreateCollectionForm(formDate: string, createdBy: num
   const existing = await db
     .select()
     .from(collectionForms)
-    .where(eq(collectionForms.formDate, new Date(formDate)))
+    .where(eq(collectionForms.formDate, formDate))
     .limit(1);
 
   if (existing.length > 0) {
@@ -200,7 +200,7 @@ export async function getOrCreateCollectionForm(formDate: string, createdBy: num
   const title = `${format(dateObj, 'yyyy年MM月dd日')} 选题收集`;
 
   const result = await db.insert(collectionForms).values({
-    formDate: new Date(formDate),
+    formDate: formDate,
     title,
     createdBy,
   });
@@ -208,7 +208,7 @@ export async function getOrCreateCollectionForm(formDate: string, createdBy: num
   const insertId = Number(result[0].insertId);
   return {
     id: insertId,
-    formDate: new Date(formDate),
+    formDate: formDate,
     title,
     createdBy,
     createdAt: new Date(),
@@ -222,7 +222,7 @@ export async function getCollectionFormByDate(formDate: string) {
   const result = await db
     .select()
     .from(collectionForms)
-    .where(eq(collectionForms.formDate, new Date(formDate)))
+    .where(eq(collectionForms.formDate, formDate))
     .limit(1);
 
   return result.length > 0 ? result[0] : null;

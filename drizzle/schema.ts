@@ -34,7 +34,7 @@ export type InsertUser = typeof users.$inferInsert;
  */
 export const collectionForms = mysqlTable("collection_forms", {
   id: int("id").autoincrement().primaryKey(),
-  formDate: date("formDate").notNull().unique(), // 收集日期，格式：YYYY-MM-DD
+  formDate: varchar("formDate", { length: 10 }).notNull().unique(), // 收集日期，格式：YYYY-MM-DD
   title: varchar("title", { length: 255 }).notNull(), // 表单标题，如"2026年02月04日 选题收集"
   createdBy: int("createdBy").notNull(), // 创建人ID
   createdAt: timestamp("createdAt").defaultNow().notNull(),

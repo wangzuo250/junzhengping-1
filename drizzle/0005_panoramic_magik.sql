@@ -1,0 +1,1 @@
+ALTER TABLE `collection_forms` MODIFY COLUMN `formDate` varchar(10) NOT NULL;

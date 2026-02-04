@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,8 +21,8 @@ export default function SelectedTopics() {
   const [createForm, setCreateForm] = useState({
     content: "",
     suggestion: "",
-    submitters: "",
   });
+  const [selectedSubmitters, setSelectedSubmitters] = useState<number[]>([]);
   const [editForm, setEditForm] = useState({
     leaderComment: "",
     creators: "",
@@ -34,12 +35,14 @@ export default function SelectedTopics() {
 
   const { data: topics, refetch } = trpc.selectedTopics.listAll.useQuery();
   const monthKeys = Array.from(new Set(topics?.map((t: any) => t.monthKey) || [])).sort((a, b) => b.localeCompare(a));
+  const { data: users } = trpc.users.list.useQuery();
   
   const createMutation = trpc.selectedTopics.create.useMutation({
     onSuccess: () => {
       toast.success("创建成功");
       setShowCreateDialog(false);
-      setCreateForm({ content: "", suggestion: "", submitters: "" });
+      setCreateForm({ content: "", suggestion: "" });
+      setSelectedSubmitters([]);
       refetch();
     },
     onError: (error) => {
@@ -396,12 +399,29 @@ export default function SelectedTopics() {
             </div>
             <div>
               <Label>提报人 *</Label>
-              <Textarea
-                value={createForm.submitters}
-                onChange={(e) => setCreateForm({ ...createForm, submitters: e.target.value })}
-                className="mt-2"
-                placeholder="请输入提报人姓名"
-              />
+              <div className="mt-2 space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                {users?.map((u: any) => (
+                  <div key={u.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`user-${u.id}`}
+                      checked={selectedSubmitters.includes(u.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedSubmitters([...selectedSubmitters, u.id]);
+                        } else {
+                          setSelectedSubmitters(selectedSubmitters.filter(id => id !== u.id));
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`user-${u.id}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {u.name || u.username}
+                    </label>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
@@ -414,11 +434,20 @@ export default function SelectedTopics() {
                     toast.error("请输入选题内容");
                     return;
                   }
-                  if (!createForm.submitters.trim()) {
-                    toast.error("请输入提报人");
+                  if (selectedSubmitters.length === 0) {
+                    toast.error("请选择至少一个提报人");
                     return;
                   }
-                  createMutation.mutate(createForm);
+                  // 将选中的用户ID转换为姓名
+                  const submitterNames = selectedSubmitters
+                    .map(id => users?.find((u: any) => u.id === id))
+                    .filter(Boolean)
+                    .map((u: any) => u.name || u.username)
+                    .join(", ");
+                  createMutation.mutate({
+                    ...createForm,
+                    submitters: submitterNames,
+                  });
                 }} 
                 disabled={createMutation.isPending}
               >

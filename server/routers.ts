@@ -16,10 +16,10 @@ export const appRouter = router({
     // 注册
     register: publicProcedure
       .input(z.object({
-        username: z.string().min(3).max(50),
-        email: z.string().email(),
+        username: z.string().min(2).max(50),
+        email: z.string().email().optional(),
         password: z.string().min(6),
-        name: z.string().optional(),
+        name: z.string().min(1),
       }))
       .mutation(async ({ input }) => {
         try {

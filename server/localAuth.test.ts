@@ -19,7 +19,7 @@ function createTestContext(user?: AuthenticatedUser): TrpcContext {
 }
 
 describe("Local Authentication", () => {
-  const testUsername = `testuser_${Date.now()}`;
+  const testUsername = `tu_${Date.now()}`;
   const testEmail = `test_${Date.now()}@example.com`;
   const testPassword = "password123";
 
@@ -47,6 +47,7 @@ describe("Local Authentication", () => {
         username: testUsername,
         email: `another_${Date.now()}@example.com`,
         password: testPassword,
+        name: "Another User",
       })
     ).rejects.toThrow("用户名已被使用");
   });
@@ -60,6 +61,7 @@ describe("Local Authentication", () => {
         username: `another_${Date.now()}`,
         email: testEmail,
         password: testPassword,
+        name: "Another User",
       })
     ).rejects.toThrow("邮箱已被使用");
   });

@@ -1,7 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
 import { FileEdit, List, Star, TrendingUp, Users } from "lucide-react";
@@ -122,9 +121,14 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button asChild className="w-full">
-                <a href={getLoginUrl()}>立即登录</a>
-              </Button>
+              <div className="flex gap-3">
+                <Link href="/login" className="flex-1">
+                  <Button className="w-full">登录</Button>
+                </Link>
+                <Link href="/register" className="flex-1">
+                  <Button variant="outline" className="w-full">注册</Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         )}

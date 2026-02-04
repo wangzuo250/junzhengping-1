@@ -53,27 +53,35 @@ export async function verifyToken(token: string): Promise<{ userId: number; user
  */
 export async function registerUser(data: {
   username: string;
-  email: string;
+  email?: string;
   password: string;
-  name?: string;
+  name: string;
 }) {
   const db = await getDb();
   if (!db) {
     throw new Error('数据库连接失败');
   }
 
-  // 检查用户名或邮箱是否已存在
-  const existing = await db
+  // 检查用户名是否已存在
+  const existingUser = await db
     .select()
     .from(users)
-    .where(or(eq(users.username, data.username), eq(users.email, data.email)))
+    .where(eq(users.username, data.username))
     .limit(1);
 
-  if (existing.length > 0) {
-    if (existing[0]?.username === data.username) {
-      throw new Error('用户名已被使用');
-    }
-    if (existing[0]?.email === data.email) {
+  if (existingUser.length > 0) {
+    throw new Error('用户名已被使用');
+  }
+
+  // 如果提供了邮箱，检查邮箱是否已被使用
+  if (data.email) {
+    const existingEmail = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, data.email))
+      .limit(1);
+
+    if (existingEmail.length > 0) {
       throw new Error('邮箱已被使用');
     }
   }
@@ -84,9 +92,9 @@ export async function registerUser(data: {
   // 插入新用户
   await db.insert(users).values({
     username: data.username,
-    email: data.email,
+    email: data.email || null,
     password: hashedPassword,
-    name: data.name || data.username,
+    name: data.name,
     role: 'user',
     lastSignedIn: new Date(),
   });

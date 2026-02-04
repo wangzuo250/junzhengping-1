@@ -28,7 +28,7 @@ export default function Register() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!username || !email || !password || !confirmPassword) {
+    if (!username || !password || !confirmPassword || !name) {
       toast.error("请填写所有必填字段");
       return;
     }
@@ -43,16 +43,16 @@ export default function Register() {
       return;
     }
 
-    if (username.length < 3) {
-      toast.error("用户名长度至少为3位");
+    if (username.length < 2) {
+      toast.error("用户名长度至少为2位");
       return;
     }
 
     registerMutation.mutate({
       username,
-      email,
+      email: email || undefined,
       password,
-      name: name || username,
+      name,
     });
   };
 
@@ -74,7 +74,7 @@ export default function Register() {
               <Input
                 id="username"
                 type="text"
-                placeholder="输入用户名（至少3位）"
+                placeholder="输入用户名（至少2位）"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={registerMutation.isPending}
@@ -82,27 +82,27 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">
-                邮箱 <span className="text-red-500">*</span>
+              <Label htmlFor="name">
+                真实姓名 <span className="text-red-500">*</span>
               </Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="输入真实姓名"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={registerMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">邮箱（可选）</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="输入邮箱地址"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={registerMutation.isPending}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="name">显示名称（可选）</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="输入显示名称"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
                 disabled={registerMutation.isPending}
               />
             </div>

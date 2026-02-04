@@ -1003,3 +1003,30 @@
 
 **服务器**: 106.54.161.236 (2核2G5M, OpenCloudOS 9)
 **域名**: wangzuo250.cn (备案中)
+
+
+### 后端修复
+- [x] 修复 getSelectedTopicBySourceId 函数，正确保存 submissionTopicId
+- [x] 清理错误的测试数据
+- [x] 创建单元测试验证修复
+
+**完成情况**：
+✅ 修复了 addFromSubmission 接口的 bug（保存错误的 submissionId）
+✅ 清理了所有错误的测试数据
+✅ 创建了3个单元测试，全部通过
+✅ 现在汇总页面的"添加到入选"功能正常工作，已入选的选题会正确显示"已入选"状态
+
+
+## 腾讯云自动部署配置
+
+- [x] 创建 GitHub Actions 工作流配置文件（.github/workflows/deploy.yml）
+- [x] 创建部署说明文档（DEPLOYMENT.md）
+- [x] 配置 GitHub Secrets（18个环境变量）
+- [ ] 初始化腾讯云服务器（安装 PM2、创建数据库）
+- [ ] 测试首次自动部署
+- [ ] 配置域名解析（wangzuo250.cn）
+
+**完成情况**：
+✅ GitHub Actions 工作流已配置
+✅ 所有 18 个 GitHub Secrets 已手动添加完成
+⏳ 等待推送代码触发首次部署

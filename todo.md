@@ -915,3 +915,26 @@
 ✅ 将 Navigation.tsx 中的 `<a>` 标签改为 `<span>` 标签
 ✅ 添加 `cursor-pointer` 类保持鼠标指针样式
 ✅ 桌面端和移动端导航菜单均已修复
+
+
+## 修复汇总页面已入选标记和移除功能
+
+### 问题描述
+- [x] 汇总页面的已入选选题没有正确显示“已入选”标记
+- [x] “移除入选”按钮没有正常工作
+- [x] 检查 SelectedStatusCell 组件的实现
+- [x] 确保 checkSelected API 正确返回数据
+
+### 修复方案
+- [x] 添加 trpc.useUtils() 到 SelectedStatusCell 组件
+- [x] 在 mutation 成功后调用 invalidate 刷新数据
+- [x] 确保“已入选”按钮显示为禁用状态（灰色）
+- [x] 确保“移除”按钮显示在“已入选”按钮右边
+- [x] 测试添加到入选和移除入选的完整流程
+
+**完成情况**：
+✅ 添加了 trpc.useUtils() 到 SelectedStatusCell 组件顶层
+✅ 在 addToSelectedMutation 和 removeFromSelectedMutation 的 onSuccess 中调用 invalidate
+✅ 已入选的选题显示“已入选”按钮（灰色禁用）+ “移除”按钮（红色）
+✅ 未入选的选题显示“添加到入选”按钮
+✅ 测试通过：添加 → 显示已入选+移除 → 移除 → 恢复为添加到入选

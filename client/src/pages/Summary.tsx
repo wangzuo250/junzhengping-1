@@ -24,10 +24,13 @@ import { toast } from "sonner";
 
 // 入选状态单元格组件
 function SelectedStatusCell({ topicId }: { topicId: number }) {
+  const utils = trpc.useUtils();
   const { data: checkResult } = trpc.selectedTopics.checkSelected.useQuery({ submissionTopicId: topicId });
   const removeFromSelectedMutation = trpc.selectedTopics.removeFromSelected.useMutation({
     onSuccess: () => {
       toast.success("已移除入选");
+      // 刷新数据
+      utils.selectedTopics.checkSelected.invalidate({ submissionTopicId: topicId });
     },
     onError: (error) => {
       toast.error(error.message || "移除失败");
@@ -36,6 +39,8 @@ function SelectedStatusCell({ topicId }: { topicId: number }) {
   const addToSelectedMutation = trpc.selectedTopics.addFromSubmission.useMutation({
     onSuccess: () => {
       toast.success("已成功添加到入选选题");
+      // 刷新数据
+      utils.selectedTopics.checkSelected.invalidate({ submissionTopicId: topicId });
     },
     onError: (error) => {
       toast.error(error.message || "添加失败");

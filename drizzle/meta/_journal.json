@@ -15,6 +15,13 @@
       "when": 1770166190452,
       "tag": "0001_whole_famine",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1770168800780,
+      "tag": "0002_spooky_magus",
+      "breakpoints": true
     }
   ]
 }

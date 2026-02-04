@@ -5,14 +5,24 @@ import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, date, json } from
  */
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
+  
+  // 本地认证字段
+  username: varchar("username", { length: 50 }).unique(), // 用户名，唯一
+  password: varchar("password", { length: 255 }), // 密码哈希
+  
+  // 基本信息
+  name: text("name"), // 显示名称
+  email: varchar("email", { length: 320 }).unique(), // 邮箱，唯一
+  
+  // 系统字段
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  
+  // 备用字段（兼容旧数据）
+  openId: varchar("openId", { length: 64 }).unique(),
+  loginMethod: varchar("loginMethod", { length: 64 }),
 });
 
 export type User = typeof users.$inferSelect;

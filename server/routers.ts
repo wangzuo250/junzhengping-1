@@ -7,12 +7,65 @@ import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_
 import * as db from "./db";
 import { format } from "date-fns";
 import { generateExcelReport } from "./exportService";
+import { registerUser, loginUser } from "./localAuth";
 
 export const appRouter = router({
   system: systemRouter,
   
   auth: router({
+    // 注册
+    register: publicProcedure
+      .input(z.object({
+        username: z.string().min(3).max(50),
+        email: z.string().email(),
+        password: z.string().min(6),
+        name: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const result = await registerUser(input);
+          return result;
+        } catch (error: any) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: error.message || '注册失败',
+          });
+        }
+      }),
+
+    // 登录
+    login: publicProcedure
+      .input(z.object({
+        usernameOrEmail: z.string(),
+        password: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          const result = await loginUser(input.usernameOrEmail, input.password);
+          
+          // 设置 Cookie
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          ctx.res.cookie(COOKIE_NAME, result.token, {
+            ...cookieOptions,
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
+          });
+          
+          return {
+            success: true,
+            user: result.user,
+          };
+        } catch (error: any) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: error.message || '登录失败',
+          });
+        }
+      }),
+
+    // 获取当前用户信息
     me: publicProcedure.query(opts => opts.ctx.user),
+    
+    // 登出
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

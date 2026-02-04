@@ -1,6 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { 
   Home, 
@@ -103,9 +102,9 @@ export default function Navigation() {
                 </Button>
               </>
             ) : (
-              <Button asChild size="sm">
-                <a href={getLoginUrl()}>登录</a>
-              </Button>
+              <Link href="/login">
+                <Button size="sm">登录</Button>
+              </Link>
             )}
           </div>
 
@@ -169,9 +168,9 @@ export default function Navigation() {
                   </Button>
                 </div>
               ) : (
-                <Button asChild size="sm" className="w-full">
-                  <a href={getLoginUrl()}>登录</a>
-                </Button>
+                <Link href="/login">
+                  <Button size="sm" className="w-full">登录</Button>
+                </Link>
               )}
             </div>
           </div>

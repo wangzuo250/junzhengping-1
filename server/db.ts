@@ -1,17 +1,23 @@
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, count, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, 
   users, 
   collectionForms, 
-  submissions, 
+  submissions,
+  submissionTopics,
+  submissionProjects,
   selectedTopics,
   systemLogs,
   type CollectionForm,
   type Submission,
+  type SubmissionTopic,
+  type SubmissionProject,
   type SelectedTopic,
   type InsertCollectionForm,
   type InsertSubmission,
+  type InsertSubmissionTopic,
+  type InsertSubmissionProject,
   type InsertSelectedTopic,
   type InsertSystemLog
 } from "../drizzle/schema";
@@ -35,8 +41,8 @@ export async function getDb() {
 // ============ 用户相关 ============
 
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
+  if (!user.username && !user.openId) {
+    throw new Error("User username or openId is required for upsert");
   }
 
   const db = await getDb();
@@ -46,12 +52,12 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 
   try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
+    const values: InsertUser = user.openId 
+      ? { openId: user.openId }
+      : { username: user.username };
     const updateSet: Record<string, unknown> = {};
 
-    const textFields = ["name", "email", "loginMethod"] as const;
+    const textFields = ["name", "email", "loginMethod", "password"] as const;
     type TextField = (typeof textFields)[number];
 
     const assignNullable = (field: TextField) => {
@@ -104,42 +110,62 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByUsername(username: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function getAllUsers() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(users).orderBy(desc(users.createdAt));
+
+  return await db.select().from(users).orderBy(desc(users.createdAt));
 }
 
 export async function updateUserRole(userId: number, role: "user" | "admin") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
 
-// ============ 每日选题收集表相关 ============
+// ============ 收集表相关 ============
 
 export async function getOrCreateCollectionForm(formDate: string, createdBy: number): Promise<CollectionForm> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // 尝试查找现有记录
-  const existing = await db.select().from(collectionForms).where(sql`${collectionForms.formDate} = ${formDate}`).limit(1);
-  
+  const existing = await db
+    .select()
+    .from(collectionForms)
+    .where(eq(collectionForms.formDate, new Date(formDate)))
+    .limit(1);
+
   if (existing.length > 0) {
-    return existing[0]!;
+    return existing[0];
   }
 
-  // 创建新记录
-  const title = `${formDate.replace(/-/g, '年').replace(/年(\d+)$/, '年$1月').replace(/月(\d+)$/, '月$1日')} 选题收集`;
-  const newForm: InsertCollectionForm = {
+  const dateObj = new Date(formDate);
+  const title = `${format(dateObj, 'yyyy年MM月dd日')} 选题收集`;
+
+  const result = await db.insert(collectionForms).values({
     formDate: new Date(formDate),
     title,
     createdBy,
-  };
+  });
 
-  const result = await db.insert(collectionForms).values(newForm);
   const insertId = Number(result[0].insertId);
-
   return {
     id: insertId,
     formDate: new Date(formDate),
@@ -152,267 +178,333 @@ export async function getOrCreateCollectionForm(formDate: string, createdBy: num
 export async function getCollectionFormByDate(formDate: string) {
   const db = await getDb();
   if (!db) return null;
-  const result = await db.select().from(collectionForms).where(sql`${collectionForms.formDate} = ${formDate}`).limit(1);
+
+  const result = await db
+    .select()
+    .from(collectionForms)
+    .where(eq(collectionForms.formDate, new Date(formDate)))
+    .limit(1);
+
   return result.length > 0 ? result[0] : null;
 }
 
 // ============ 选题提交相关 ============
 
-export async function createSubmissions(submissionList: InsertSubmission[]) {
+/**
+ * 创建主提交记录
+ */
+export async function createSubmission(data: InsertSubmission): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.insert(submissions).values(submissionList);
+
+  const result = await db.insert(submissions).values(data);
+  return Number(result[0].insertId);
 }
 
-export async function getSubmissionsByFormId(collectionFormId: number): Promise<(Submission & { userName: string })[]> {
+/**
+ * 批量创建选题子记录
+ */
+export async function createSubmissionTopics(topics: InsertSubmissionTopic[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  if (topics.length === 0) return;
+  await db.insert(submissionTopics).values(topics);
+}
+
+/**
+ * 批量创建项目进度子记录
+ */
+export async function createSubmissionProjects(projects: InsertSubmissionProject[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  if (projects.length === 0) return;
+  await db.insert(submissionProjects).values(projects);
+}
+
+/**
+ * 获取指定日期的所有提交（含用户信息、选题列表、项目列表）
+ */
+export async function getSubmissionsByDate(formDate: string) {
   const db = await getDb();
   if (!db) return [];
-  
-  const result = await db
+
+  const form = await getCollectionFormByDate(formDate);
+  if (!form) return [];
+
+  // 获取主提交记录
+  const submissionList = await db
     .select({
-      id: submissions.id,
-      userId: submissions.userId,
-      collectionFormId: submissions.collectionFormId,
-      content: submissions.content,
-      suggestedFormat: submissions.suggestedFormat,
-      submittedAt: submissions.submittedAt,
-      userName: users.name,
+      submission: submissions,
+      user: users,
     })
     .from(submissions)
     .leftJoin(users, eq(submissions.userId, users.id))
-    .where(eq(submissions.collectionFormId, collectionFormId))
+    .where(eq(submissions.collectionFormId, form.id))
     .orderBy(desc(submissions.submittedAt));
 
-  return result.map(r => ({
-    ...r,
-    userName: r.userName || '未知用户',
+  // 获取所有提交的ID
+  const submissionIds = submissionList.map(s => s.submission.id);
+  if (submissionIds.length === 0) return [];
+
+  // 批量获取选题列表
+  const topics = await db
+    .select()
+    .from(submissionTopics)
+    .where(inArray(submissionTopics.submissionId, submissionIds));
+
+  // 批量获取项目列表
+  const projects = await db
+    .select()
+    .from(submissionProjects)
+    .where(inArray(submissionProjects.submissionId, submissionIds));
+
+  // 组装数据
+  return submissionList.map(item => ({
+    ...item.submission,
+    userName: item.user?.name || item.user?.username || "未知用户",
+    topics: topics.filter(t => t.submissionId === item.submission.id),
+    projects: projects.filter(p => p.submissionId === item.submission.id),
   }));
 }
 
-export async function getSubmissionsByUserId(userId: number) {
+/**
+ * 获取今日统计
+ */
+export async function getTodayStats() {
   const db = await getDb();
-  if (!db) return [];
-  return db.select().from(submissions).where(eq(submissions.userId, userId)).orderBy(desc(submissions.submittedAt));
-}
+  if (!db) return { submissionCount: 0, topicCount: 0, userCount: 0 };
 
-export async function getTodayStats(formDate: string) {
-  const db = await getDb();
-  if (!db) return { userCount: 0, topicCount: 0 };
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const form = await getCollectionFormByDate(today);
+  if (!form) return { submissionCount: 0, topicCount: 0, userCount: 0 };
 
-  const form = await getCollectionFormByDate(formDate);
-  if (!form) return { userCount: 0, topicCount: 0 };
-
-  const stats = await db
-    .select({
-      userCount: sql<number>`COUNT(DISTINCT ${submissions.userId})`,
-      topicCount: sql<number>`COUNT(*)`,
-    })
+  const submissionList = await db
+    .select()
     .from(submissions)
     .where(eq(submissions.collectionFormId, form.id));
 
-  return stats[0] || { userCount: 0, topicCount: 0 };
+  const submissionIds = submissionList.map(s => s.id);
+  if (submissionIds.length === 0) {
+    return { submissionCount: 0, topicCount: 0, userCount: 0 };
+  }
+
+  const topicList = await db
+    .select()
+    .from(submissionTopics)
+    .where(inArray(submissionTopics.submissionId, submissionIds));
+
+  const uniqueUsers = new Set(submissionList.map(s => s.userId));
+
+  return {
+    submissionCount: submissionList.length,
+    topicCount: topicList.length,
+    userCount: uniqueUsers.size,
+  };
+}
+
+/**
+ * 获取用户的提交历史
+ */
+export async function getUserSubmissions(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const submissionList = await db
+    .select({
+      submission: submissions,
+      form: collectionForms,
+    })
+    .from(submissions)
+    .leftJoin(collectionForms, eq(submissions.collectionFormId, collectionForms.id))
+    .where(eq(submissions.userId, userId))
+    .orderBy(desc(submissions.submittedAt));
+
+  const submissionIds = submissionList.map(s => s.submission.id);
+  if (submissionIds.length === 0) return [];
+
+  const topics = await db
+    .select()
+    .from(submissionTopics)
+    .where(inArray(submissionTopics.submissionId, submissionIds));
+
+  const projects = await db
+    .select()
+    .from(submissionProjects)
+    .where(inArray(submissionProjects.submissionId, submissionIds));
+
+  return submissionList.map(item => ({
+    ...item.submission,
+    formDate: item.form?.formDate,
+    formTitle: item.form?.title,
+    topics: topics.filter(t => t.submissionId === item.submission.id),
+    projects: projects.filter(p => p.submissionId === item.submission.id),
+  }));
+}
+
+/**
+ * 获取用户的累计统计
+ */
+export async function getUserTotalStats(userId: number) {
+  const db = await getDb();
+  if (!db) return { totalSubmissions: 0, totalTopics: 0, totalSelected: 0 };
+
+  const submissionList = await db
+    .select()
+    .from(submissions)
+    .where(eq(submissions.userId, userId));
+
+  const submissionIds = submissionList.map(s => s.id);
+  let totalTopics = 0;
+  if (submissionIds.length > 0) {
+    const topicList = await db
+      .select()
+      .from(submissionTopics)
+      .where(inArray(submissionTopics.submissionId, submissionIds));
+    totalTopics = topicList.length;
+  }
+
+  const selectedList = await db
+    .select()
+    .from(selectedTopics)
+    .where(sql`FIND_IN_SET(${userId}, REPLACE(${selectedTopics.submitters}, ' ', ''))`);
+
+  return {
+    totalSubmissions: submissionList.length,
+    totalTopics,
+    totalSelected: selectedList.length,
+  };
 }
 
 // ============ 入选选题相关 ============
 
-export async function createSelectedTopic(topic: InsertSelectedTopic) {
+export async function createSelectedTopic(data: InsertSelectedTopic): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(selectedTopics).values(topic);
+
+  const result = await db.insert(selectedTopics).values(data);
   return Number(result[0].insertId);
 }
 
-export async function checkDuplicateSelectedTopic(content: string, monthKey: string): Promise<SelectedTopic | null> {
-  const db = await getDb();
-  if (!db) return null;
-
-  const normalized = content.trim();
-  const result = await db
-    .select()
-    .from(selectedTopics)
-    .where(
-      and(
-        eq(selectedTopics.monthKey, monthKey),
-        eq(selectedTopics.content, normalized)
-      )
-    )
-    .limit(1);
-
-  return result.length > 0 ? result[0]! : null;
-}
-
-export async function mergeSubmitters(topicId: number, newSubmitter: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const topic = await db.select().from(selectedTopics).where(eq(selectedTopics.id, topicId)).limit(1);
-  
-  if (topic.length > 0) {
-    const submitters = topic[0]!.submitters
-      .split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-    
-    if (!submitters.includes(newSubmitter.trim())) {
-      submitters.push(newSubmitter.trim());
-      await db
-        .update(selectedTopics)
-        .set({ 
-          submitters: submitters.join(', '),
-          updatedAt: new Date()
-        })
-        .where(eq(selectedTopics.id, topicId));
-    }
-  }
-}
-
-export async function getSelectedTopics(monthKey?: string) {
+export async function getSelectedTopicsByMonth(monthKey: string) {
   const db = await getDb();
   if (!db) return [];
 
-  if (monthKey) {
-    return db
-      .select()
-      .from(selectedTopics)
-      .where(eq(selectedTopics.monthKey, monthKey))
-      .orderBy(desc(selectedTopics.selectedDate));
-  }
-
-  return db.select().from(selectedTopics).orderBy(desc(selectedTopics.selectedDate));
+  return await db
+    .select()
+    .from(selectedTopics)
+    .where(eq(selectedTopics.monthKey, monthKey))
+    .orderBy(desc(selectedTopics.selectedDate));
 }
 
-export async function getSelectedTopicById(id: number) {
+export async function getAllSelectedTopics() {
   const db = await getDb();
-  if (!db) return null;
-  const result = await db.select().from(selectedTopics).where(eq(selectedTopics.id, id)).limit(1);
-  return result.length > 0 ? result[0] : null;
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(selectedTopics)
+    .orderBy(desc(selectedTopics.selectedDate));
 }
 
-export async function updateSelectedTopic(id: number, updates: Partial<SelectedTopic>) {
+export async function updateSelectedTopic(id: number, data: Partial<SelectedTopic>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(selectedTopics).set({ ...updates, updatedAt: new Date() }).where(eq(selectedTopics.id, id));
+
+  await db.update(selectedTopics).set(data).where(eq(selectedTopics.id, id));
 }
 
 export async function deleteSelectedTopic(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
   await db.delete(selectedTopics).where(eq(selectedTopics.id, id));
 }
 
-export async function getDistinctMonthKeys() {
+export async function getProgressStats() {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) return { 未开始: 0, 进行中: 0, 已完成: 0, 已暂停: 0 };
+
   const result = await db
-    .selectDistinct({ monthKey: selectedTopics.monthKey })
+    .select({
+      progress: selectedTopics.progress,
+      count: count(),
+    })
     .from(selectedTopics)
-    .orderBy(desc(selectedTopics.monthKey));
-  return result.map(r => r.monthKey);
+    .groupBy(selectedTopics.progress);
+
+  const stats: Record<string, number> = { 未开始: 0, 进行中: 0, 已完成: 0, 已暂停: 0 };
+  result.forEach(row => {
+    stats[row.progress] = Number(row.count);
+  });
+
+  return stats;
 }
 
-// 统计相关
-export async function getSelectedTopicsStats() {
+export async function getStatusStats() {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) return { 未发布: 0, 已发布: 0, 否决: 0 };
 
-  const stats = await db
+  const result = await db
     .select({
-      total: sql<number>`COUNT(*)`,
-      notStarted: sql<number>`SUM(CASE WHEN ${selectedTopics.progress} = '未开始' THEN 1 ELSE 0 END)`,
-      inProgress: sql<number>`SUM(CASE WHEN ${selectedTopics.progress} = '进行中' THEN 1 ELSE 0 END)`,
-      completed: sql<number>`SUM(CASE WHEN ${selectedTopics.progress} = '已完成' THEN 1 ELSE 0 END)`,
-      paused: sql<number>`SUM(CASE WHEN ${selectedTopics.progress} = '已暂停' THEN 1 ELSE 0 END)`,
-      notPublished: sql<number>`SUM(CASE WHEN ${selectedTopics.status} = '未发布' THEN 1 ELSE 0 END)`,
-      published: sql<number>`SUM(CASE WHEN ${selectedTopics.status} = '已发布' THEN 1 ELSE 0 END)`,
-      rejected: sql<number>`SUM(CASE WHEN ${selectedTopics.status} = '否决' THEN 1 ELSE 0 END)`,
+      status: selectedTopics.status,
+      count: count(),
     })
-    .from(selectedTopics);
+    .from(selectedTopics)
+    .groupBy(selectedTopics.status);
 
-  return stats[0] || null;
+  const stats: Record<string, number> = { 未发布: 0, 已发布: 0, 否决: 0 };
+  result.forEach(row => {
+    stats[row.status] = Number(row.count);
+  });
+
+  return stats;
 }
 
 export async function getMonthlyContribution(monthKeys: string[]) {
   const db = await getDb();
   if (!db) return [];
 
-  // 查询指定月份的所有入选选题
   const topics = await db
     .select()
     .from(selectedTopics)
-    .where(sql`${selectedTopics.monthKey} IN (${sql.join(monthKeys.map(k => sql`${k}`), sql`, `)})`);
+    .where(inArray(selectedTopics.monthKey, monthKeys));
 
-  // 统计每个提报人的贡献
-  const contributionMap = new Map<string, {
-    name: string;
-    selectedCount: number;
-    publishedCount: number;
-    rejectedCount: number;
-  }>();
+  const userStats: Record<number, { name: string; selectedCount: number; publishedCount: number }> = {};
 
-  topics.forEach(topic => {
-    const submitterNames = topic.submitters.split(',').map(s => s.trim()).filter(s => s.length > 0);
-    
-    submitterNames.forEach(name => {
-      if (!contributionMap.has(name)) {
-        contributionMap.set(name, {
-          name,
+  for (const topic of topics) {
+    const submitterIds = topic.submitters.split(',').map(id => parseInt(id.trim()));
+    for (const userId of submitterIds) {
+      if (!userStats[userId]) {
+        const user = await getUserById(userId);
+        userStats[userId] = {
+          name: user?.name || user?.username || "未知用户",
           selectedCount: 0,
           publishedCount: 0,
-          rejectedCount: 0,
-        });
+        };
       }
+      userStats[userId].selectedCount++;
+      if (topic.status === "已发布") {
+        userStats[userId].publishedCount++;
+      }
+    }
+  }
 
-      const stats = contributionMap.get(name)!;
-      stats.selectedCount++;
-      if (topic.status === '已发布') stats.publishedCount++;
-      if (topic.status === '否决') stats.rejectedCount++;
-    });
-  });
-
-  // 转换为数组并排序
-  const result = Array.from(contributionMap.values())
-    .map(stats => ({
-      ...stats,
-      publishRate: stats.selectedCount > 0 ? (stats.publishedCount / stats.selectedCount * 100).toFixed(1) : '0.0',
-    }))
-    .sort((a, b) => b.selectedCount - a.selectedCount);
-
-  return result;
-}
-
-// ============ 个人统计相关 ============
-
-export async function getUserStats(userId: number, userName: string) {
-  const db = await getDb();
-  if (!db) return { totalSubmissions: 0, totalSelected: 0 };
-
-  const totalSubmissions = await db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(submissions)
-    .where(eq(submissions.userId, userId));
-
-  // 统计入选数量（提报人字段中包含该用户姓名）
-  const allSelected = await db.select().from(selectedTopics);
-  const totalSelected = allSelected.filter(topic => 
-    topic.submitters.split(',').map(s => s.trim()).includes(userName)
-  ).length;
-
-  return {
-    totalSubmissions: totalSubmissions[0]?.count || 0,
-    totalSelected,
-  };
+  return Object.entries(userStats).map(([userId, stats]) => ({
+    userId: parseInt(userId),
+    ...stats,
+    publishRate: stats.selectedCount > 0 
+      ? ((stats.publishedCount / stats.selectedCount) * 100).toFixed(1) + '%'
+      : '0%',
+  })).sort((a, b) => b.selectedCount - a.selectedCount);
 }
 
 // ============ 系统日志相关 ============
 
-export async function createSystemLog(log: InsertSystemLog) {
+export async function createSystemLog(data: InsertSystemLog) {
   const db = await getDb();
-  if (!db) return;
-  await db.insert(systemLogs).values(log);
-}
+  if (!db) throw new Error("Database not available");
 
-export async function getSystemLogs(limit: number = 100) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(systemLogs).orderBy(desc(systemLogs.createdAt)).limit(limit);
+  await db.insert(systemLogs).values(data);
 }

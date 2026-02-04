@@ -62,32 +62,39 @@ export const appRouter = router({
         }
       }),
 
-    // 获取当前用户信息
     me: publicProcedure.query(opts => opts.ctx.user),
     
-    // 登出
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return { success: true } as const;
+      return {
+        success: true,
+      } as const;
     }),
   }),
 
   // 用户管理
   users: router({
     list: adminProcedure.query(async () => {
-      return db.getAllUsers();
+      return await db.getAllUsers();
     }),
-    
+
     updateRole: adminProcedure
       .input(z.object({
         userId: z.number(),
         role: z.enum(["user", "admin"]),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (input.userId === ctx.user.id) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: '不能修改自己的角色',
+          });
+        }
+
         await db.updateUserRole(input.userId, input.role);
         await db.createSystemLog({
-          userId: input.userId,
+          userId: ctx.user.id,
           action: "UPDATE_USER_ROLE",
           target: `User ${input.userId}`,
           details: { newRole: input.role },
@@ -100,24 +107,67 @@ export const appRouter = router({
   submissions: router({
     submit: protectedProcedure
       .input(z.object({
+        // 主表单字段
+        longTermPlan: z.string().optional(),
+        workSuggestion: z.string().optional(),
+        riskWarning: z.string().optional(),
+        
+        // 选题列表（至少一条）
         topics: z.array(z.object({
-          content: z.string().min(1, "选题内容不能为空"),
-          suggestedFormat: z.array(z.string()).min(1, "请至少选择一种建议形式"),
-        })),
+          content: z.string().optional(),
+          suggestedFormat: z.array(z.string()).optional(),
+          creativeIdea: z.string().optional(),
+          creator: z.string().optional(),
+          relatedLink: z.string().optional(),
+        })).min(1, "请至少添加一条选题"),
+        
+        // 项目进度列表（至少一条）
+        projects: z.array(z.object({
+          projectName: z.string().optional(),
+          progress: z.enum(["未开始", "已开始", "已结束", "暂停"]).optional(),
+          note: z.string().optional(),
+        })).min(1, "请至少添加一条项目进度"),
       }))
       .mutation(async ({ input, ctx }) => {
         const today = format(new Date(), 'yyyy-MM-dd');
         const form = await db.getOrCreateCollectionForm(today, ctx.user.id);
 
-        const submissionList = input.topics.map(topic => ({
+        // 创建主提交记录
+        const submissionId = await db.createSubmission({
           userId: ctx.user.id,
           collectionFormId: form.id,
-          content: topic.content,
-          suggestedFormat: topic.suggestedFormat.join(','), // 数组转为逗号分隔字符串
-        }));
+          submitterName: ctx.user.name || ctx.user.username || "未知用户",
+          longTermPlan: input.longTermPlan || null,
+          workSuggestion: input.workSuggestion || null,
+          riskWarning: input.riskWarning || null,
+        });
 
-        await db.createSubmissions(submissionList);
-        return { success: true, count: submissionList.length };
+        // 创建选题子记录
+        const topicRecords = input.topics.map(topic => ({
+          submissionId,
+          content: topic.content || null,
+          suggestedFormat: topic.suggestedFormat?.join(',') || null,
+          creativeIdea: topic.creativeIdea || null,
+          creator: topic.creator || null,
+          relatedLink: topic.relatedLink || null,
+        }));
+        await db.createSubmissionTopics(topicRecords);
+
+        // 创建项目进度子记录
+        const projectRecords = input.projects.map(project => ({
+          submissionId,
+          projectName: project.projectName || null,
+          progress: project.progress || null,
+          note: project.note || null,
+        }));
+        await db.createSubmissionProjects(projectRecords);
+
+        return { 
+          success: true, 
+          submissionId,
+          topicCount: input.topics.length,
+          projectCount: input.projects.length,
+        };
       }),
 
     getByDate: protectedProcedure
@@ -128,85 +178,44 @@ export const appRouter = router({
         const form = await db.getCollectionFormByDate(input.date);
         if (!form) return { form: null, submissions: [] };
 
-        const submissions = await db.getSubmissionsByFormId(form.id);
+        const submissions = await db.getSubmissionsByDate(input.date);
         return { form, submissions };
       }),
 
-    getTodayStats: publicProcedure.query(async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      return db.getTodayStats(today);
+    todayStats: protectedProcedure.query(async () => {
+      return await db.getTodayStats();
     }),
 
-    getUserHistory: protectedProcedure.query(async ({ ctx }) => {
-      return db.getSubmissionsByUserId(ctx.user.id);
+    myHistory: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUserSubmissions(ctx.user.id);
+    }),
+
+    myStats: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUserTotalStats(ctx.user.id);
     }),
   }),
 
   // 入选选题管理
   selectedTopics: router({
-    list: protectedProcedure
-      .input(z.object({
-        monthKey: z.string().optional(),
-      }))
-      .query(async ({ input }) => {
-        return db.getSelectedTopics(input.monthKey);
-      }),
-
-    getById: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return db.getSelectedTopicById(input.id);
-      }),
-
-    getMonthKeys: protectedProcedure.query(async () => {
-      return db.getDistinctMonthKeys();
-    }),
-
-    add: protectedProcedure
+    add: adminProcedure
       .input(z.object({
         content: z.string().min(1),
         suggestion: z.string().optional(),
-        submitters: z.string(),
-        selectedDate: z.string(), // YYYY-MM-DD
+        submitterIds: z.array(z.number()).min(1),
         sourceSubmissionId: z.number().optional(),
-        leaderComment: z.string().optional(),
-        creators: z.string().optional(),
-        progress: z.enum(["未开始", "进行中", "已完成", "已暂停"]).optional(),
-        status: z.enum(["未发布", "已发布", "否决"]).optional(),
-        remark: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        // 计算月份标识
-        const monthKey = input.selectedDate.substring(0, 7); // YYYY-MM
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const monthKey = format(new Date(), 'yyyy-MM');
 
-        // 检测重复
-        const duplicate = await db.checkDuplicateSelectedTopic(input.content, monthKey);
-        
-        if (duplicate) {
-          // 合并提报人
-          await db.mergeSubmitters(duplicate.id, input.submitters);
-          return { 
-            success: true, 
-            merged: true, 
-            id: duplicate.id,
-            message: "该选题已存在，已合并提报人"
-          };
-        }
-
-        // 创建新记录
         const id = await db.createSelectedTopic({
-          content: input.content.trim(),
-          suggestion: input.suggestion,
-          submitters: input.submitters,
-          selectedDate: new Date(input.selectedDate),
+          content: input.content,
+          suggestion: input.suggestion || null,
+          submitters: input.submitterIds.join(','),
+          selectedDate: new Date(today),
           monthKey,
-          sourceSubmissionId: input.sourceSubmissionId,
+          sourceSubmissionId: input.sourceSubmissionId || null,
           createdBy: ctx.user.id,
-          leaderComment: input.leaderComment,
-          creators: input.creators,
-          progress: input.progress || "未开始",
-          status: input.status || "未发布",
-          remark: input.remark,
         });
 
         await db.createSystemLog({
@@ -216,120 +225,116 @@ export const appRouter = router({
           details: { content: input.content },
         });
 
-        return { success: true, merged: false, id };
+        return { success: true, id };
       }),
+
+    listByMonth: protectedProcedure
+      .input(z.object({
+        monthKey: z.string(), // YYYY-MM
+      }))
+      .query(async ({ input }) => {
+        return await db.getSelectedTopicsByMonth(input.monthKey);
+      }),
+
+    listAll: protectedProcedure.query(async () => {
+      return await db.getAllSelectedTopics();
+    }),
 
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
-        content: z.string().optional(),
-        suggestion: z.string().optional(),
-        leaderComment: z.string().optional(),
-        creators: z.string().optional(),
-        progress: z.enum(["未开始", "进行中", "已完成", "已暂停"]).optional(),
-        status: z.enum(["未发布", "已发布", "否决"]).optional(),
-        remark: z.string().optional(),
-        selectedDate: z.string().optional(),
+        data: z.object({
+          content: z.string().optional(),
+          suggestion: z.string().optional(),
+          leaderComment: z.string().optional(),
+          creators: z.string().optional(),
+          progress: z.enum(["未开始", "进行中", "已完成", "已暂停"]).optional(),
+          status: z.enum(["未发布", "已发布", "否决"]).optional(),
+          remark: z.string().optional(),
+        }),
       }))
       .mutation(async ({ input, ctx }) => {
-        const topic = await db.getSelectedTopicById(input.id);
-        if (!topic) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "选题不存在" });
-        }
-
-        // 权限检查：普通用户只能编辑进度相关字段
+        // 普通用户只能编辑进度相关字段
         if (ctx.user.role !== "admin") {
           const allowedFields = ["leaderComment", "creators", "progress", "status", "remark"];
-          const requestedFields = Object.keys(input).filter(k => k !== "id");
-          const hasUnauthorizedFields = requestedFields.some(f => !allowedFields.includes(f));
+          const requestedFields = Object.keys(input.data);
+          const hasUnauthorizedField = requestedFields.some(f => !allowedFields.includes(f));
           
-          if (hasUnauthorizedFields) {
-            throw new TRPCError({ 
-              code: "FORBIDDEN", 
-              message: "普通用户只能编辑进度相关字段" 
+          if (hasUnauthorizedField) {
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: '普通用户只能编辑进度相关字段',
             });
           }
         }
 
-        const updates: any = {};
-        if (input.content !== undefined) updates.content = input.content;
-        if (input.suggestion !== undefined) updates.suggestion = input.suggestion;
-        if (input.leaderComment !== undefined) updates.leaderComment = input.leaderComment;
-        if (input.creators !== undefined) updates.creators = input.creators;
-        if (input.progress !== undefined) updates.progress = input.progress;
-        if (input.status !== undefined) updates.status = input.status;
-        if (input.remark !== undefined) updates.remark = input.remark;
-        if (input.selectedDate !== undefined) {
-          updates.selectedDate = new Date(input.selectedDate);
-          updates.monthKey = input.selectedDate.substring(0, 7);
-        }
-
-        await db.updateSelectedTopic(input.id, updates);
-
-        await db.createSystemLog({
-          userId: ctx.user.id,
-          action: "UPDATE_SELECTED_TOPIC",
-          target: `Topic ${input.id}`,
-          details: updates,
-        });
-
+        await db.updateSelectedTopic(input.id, input.data);
         return { success: true };
       }),
 
     delete: adminProcedure
-      .input(z.object({ id: z.number() }))
+      .input(z.object({
+        id: z.number(),
+      }))
       .mutation(async ({ input, ctx }) => {
         await db.deleteSelectedTopic(input.id);
-        
         await db.createSystemLog({
           userId: ctx.user.id,
           action: "DELETE_SELECTED_TOPIC",
           target: `Topic ${input.id}`,
         });
-
         return { success: true };
       }),
-  }),
 
-  // 统计功能
-  stats: router({
-    overview: adminProcedure.query(async () => {
-      return db.getSelectedTopicsStats();
+    progressStats: protectedProcedure.query(async () => {
+      return await db.getProgressStats();
+    }),
+
+    statusStats: protectedProcedure.query(async () => {
+      return await db.getStatusStats();
     }),
 
     monthlyContribution: protectedProcedure
       .input(z.object({
-        monthKeys: z.array(z.string()),
+        monthKeys: z.array(z.string()), // ["2026-01", "2026-02"]
       }))
       .query(async ({ input, ctx }) => {
         const allData = await db.getMonthlyContribution(input.monthKeys);
         
-        // 权限控制：普通用户只返回前5名
-        if (ctx.user.role === "admin") {
-          return { data: allData, isLimited: false };
-        } else {
-          return { data: allData.slice(0, 5), isLimited: true };
+        // 普通用户只返回前5名
+        if (ctx.user.role !== "admin") {
+          return allData.slice(0, 5);
         }
+        
+        return allData;
       }),
-  }),
 
-  // 个人空间
-  personal: router({
-    stats: protectedProcedure.query(async ({ ctx }) => {
-      return db.getUserStats(ctx.user.id, ctx.user.name || "未知用户");
-    }),
-  }),
-
-  // 导出功能
-  export: router({
-    excel: protectedProcedure
+    exportReport: protectedProcedure
       .input(z.object({
         monthKeys: z.array(z.string()),
       }))
       .mutation(async ({ input, ctx }) => {
-        const buffer = await generateExcelReport(ctx.user.role, input.monthKeys);
-        const base64 = Buffer.from(buffer).toString('base64');
-        return { data: base64, filename: `选题系统报表_${format(new Date(), 'yyyyMMdd')}.xlsx` };
+        const contribution = await db.getMonthlyContribution(input.monthKeys);
+        const progressStats = await db.getProgressStats();
+        const statusStats = await db.getStatusStats();
+
+        // 普通用户只导出前5名
+        const exportData = ctx.user.role === "admin" 
+          ? contribution 
+          : contribution.slice(0, 5);
+
+        const buffer = await generateExcelReport({
+          contribution: exportData,
+          progressStats,
+          statusStats,
+          monthKeys: input.monthKeys,
+        });
+
+        return {
+          success: true,
+          data: buffer.toString('base64'),
+          filename: `选题统计报告_${input.monthKeys.join('_')}.xlsx`,
+        };
       }),
   }),
 });

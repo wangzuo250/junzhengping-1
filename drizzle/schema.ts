@@ -11,7 +11,7 @@ export const users = mysqlTable("users", {
   password: varchar("password", { length: 255 }), // 密码哈希
   
   // 基本信息
-  name: text("name"), // 显示名称
+  name: text("name"), // 真实姓名
   email: varchar("email", { length: 320 }).unique(), // 邮箱，唯一
   
   // 系统字段
@@ -43,19 +43,62 @@ export type CollectionForm = typeof collectionForms.$inferSelect;
 export type InsertCollectionForm = typeof collectionForms.$inferInsert;
 
 /**
- * 选题提交记录表 - 存储用户提交的每一个选题
+ * 选题提交记录表 - 存储用户每次提交的主表单
  */
 export const submissions = mysqlTable("submissions", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(), // 提交人ID
   collectionFormId: int("collectionFormId").notNull(), // 关联的收集表ID
-  content: text("content").notNull(), // 选题内容
-  suggestedFormat: text("suggestedFormat").notNull(), // 建议形式（逗号分隔，支持多选）：钧评,快评,视频等
+  
+  // 主表单字段
+  submitterName: varchar("submitterName", { length: 100 }).notNull(), // 提报人姓名
+  longTermPlan: text("longTermPlan"), // 长期策划（可选）
+  workSuggestion: text("workSuggestion"), // 工作建议（可选）
+  riskWarning: text("riskWarning"), // 风险提示（可选）
+  
   submittedAt: timestamp("submittedAt").defaultNow().notNull(),
 });
 
 export type Submission = typeof submissions.$inferSelect;
 export type InsertSubmission = typeof submissions.$inferInsert;
+
+/**
+ * 选题子表 - 存储每次提交中的多个选题
+ */
+export const submissionTopics = mysqlTable("submission_topics", {
+  id: int("id").autoincrement().primaryKey(),
+  submissionId: int("submissionId").notNull(), // 关联主表
+  
+  // 选题字段（全部可选）
+  content: text("content"), // 选题内容
+  suggestedFormat: text("suggestedFormat"), // 建议形式（逗号分隔，支持多选）
+  creativeIdea: text("creativeIdea"), // 创作思路
+  creator: varchar("creator", { length: 100 }), // 创作者
+  relatedLink: text("relatedLink"), // 相关链接
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SubmissionTopic = typeof submissionTopics.$inferSelect;
+export type InsertSubmissionTopic = typeof submissionTopics.$inferInsert;
+
+/**
+ * 项目进度子表 - 存储每次提交中的多个项目进度
+ */
+export const submissionProjects = mysqlTable("submission_projects", {
+  id: int("id").autoincrement().primaryKey(),
+  submissionId: int("submissionId").notNull(), // 关联主表
+  
+  // 项目进度字段（全部可选）
+  projectName: varchar("projectName", { length: 255 }), // 项目名
+  progress: mysqlEnum("progress", ["未开始", "已开始", "已结束", "暂停"]), // 进度
+  note: text("note"), // 备注
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SubmissionProject = typeof submissionProjects.$inferSelect;
+export type InsertSubmissionProject = typeof submissionProjects.$inferInsert;
 
 /**
  * 入选选题表 - 管理从每日选题中筛选出的优质选题

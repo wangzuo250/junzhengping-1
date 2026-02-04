@@ -365,6 +365,15 @@ export const appRouter = router({
           });
         }
 
+        // 检查是否已经添加到入选
+        const existing = await db.getSelectedTopicBySourceId(input.submissionTopicId);
+        if (existing) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: '该选题已经添加到入选选题',
+          });
+        }
+
         const today = format(new Date(), 'yyyy-MM-dd');
         const monthKey = format(new Date(), 'yyyy-MM');
 
@@ -374,7 +383,7 @@ export const appRouter = router({
           submitters: topic.submitterName || '未知用户',
           selectedDate: new Date(today),
           monthKey,
-          sourceSubmissionId: topic.submissionId,
+          sourceSubmissionId: input.submissionTopicId,
           createdBy: ctx.user.id,
           progress: '未开始',
           status: '未发布',

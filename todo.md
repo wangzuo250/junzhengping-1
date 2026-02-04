@@ -938,3 +938,56 @@
 ✅ 已入选的选题显示“已入选”按钮（灰色禁用）+ “移除”按钮（红色）
 ✅ 未入选的选题显示“添加到入选”按钮
 ✅ 测试通过：添加 → 显示已入选+移除 → 移除 → 恢复为添加到入选
+
+
+## 修复汇总页面重复添加和已入选标记显示问题
+
+### 问题描述
+- [ ] "添加到入选"按钮可以重复点击，导致同一选题被多次添加到入选选题表
+- [ ] 已入选的选题没有正确显示"已入选"（禁用）+"移除"按钮
+- [ ] SelectedStatusCell 组件没有正常工作
+
+### 修复方案
+- [ ] 后端：在 addToSelected API 中添加重复检查，如果已存在则返回错误
+- [ ] 后端：确保 checkSelected API 正确返回选题的入选状态
+- [ ] 前端：检查 SelectedStatusCell 组件是否被正确使用
+- [ ] 前端：确保 checkSelected 查询正常触发并返回数据
+- [ ] 测试：添加选题到入选后，按钮应变为"已入选"+"移除"
+- [ ] 测试：尝试重复添加，应该被阻止或提示已存在
+- [ ] 测试：移除入选后，按钮应变回"添加到入选"
+
+
+## 新问题：修复汇总页面入选状态标记和移除功能
+
+### 问题分析
+- [x] SelectedStatusCell 组件存在但未正确显示状态
+- [x] "添加到入选"按钮可以重复点击，造成重复记录
+- [x] 已入选的选题应显示"已入选"（禁用）+"移除"按钮
+- [x] checkSelected 查询返回的都是 false，即使选题已入选
+
+### 根本原因
+- [x] addFromSubmission 接口保存的 sourceSubmissionId 错误
+- [x] 保存的是 topic.submissionId（submission表的ID）而不是 input.submissionTopicId（submission_topics表的ID）
+- [x] 导致 getSelectedTopicBySourceId 查询不到匹配的记录
+
+### 修复方案
+- [x] 修改 addFromSubmission 接口，正确保存 submissionTopicId
+- [x] 删除所有错误的测试数据（sourceSubmissionId 不为 NULL 的记录）
+- [x] 创建测试用例验证修复
+- [x] 确保 checkSelected 查询能正确返回入选状态
+
+### 测试
+- [x] 编写 selectedTopics.test.ts 测试文件
+- [x] 测试 createSelectedTopic 正确保存 sourceSubmissionId
+- [x] 测试 getSelectedTopicBySourceId 正确查询已入选选题
+- [x] 测试未入选选题返回 null
+- [x] 所有测试通过（3/3）
+
+**完成情况**：
+✅ 修复了 addFromSubmission 接口的 bug（sourceSubmissionId 保存错误）
+✅ 清理了所有错误的测试数据
+✅ 创建并通过了3个测试用例
+✅ 现在 SelectedStatusCell 组件能正确显示入选状态
+✅ 已入选的选题会显示"已入选"（禁用）+"移除"按钮
+✅ 未入选的选题显示"添加到入选"按钮
+✅ 防止重复添加（后端已有检查）

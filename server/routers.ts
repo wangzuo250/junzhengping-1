@@ -79,6 +79,21 @@ export const appRouter = router({
       return await db.getAllUsers();
     }),
 
+    getById: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: '用户不存在',
+          });
+        }
+        return user;
+      }),
+
     updateRole: adminProcedure
       .input(z.object({
         userId: z.number(),

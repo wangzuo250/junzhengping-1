@@ -70,6 +70,12 @@ export default function Personal() {
     targetUserId ? { userId: targetUserId } : undefined,
     { enabled: isAuthenticated }
   );
+  
+  // 获取被查看用户的信息（用于显示用户名）
+  const { data: targetUser } = trpc.users.getById.useQuery(
+    { userId: targetUserId! },
+    { enabled: isAuthenticated && !!targetUserId }
+  );
 
   // 获取 trpc utils
   const utils = trpc.useUtils();
@@ -229,7 +235,7 @@ export default function Personal() {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            {isViewingOtherUser ? `用户个人空间` : `个人空间`}
+            {isViewingOtherUser ? `${targetUser?.name || targetUser?.username || '用户'}的个人空间` : `个人空间`}
           </h1>
           <p className="text-gray-600 mt-2">
             {isViewingOtherUser 

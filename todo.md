@@ -1022,7 +1022,7 @@
 - [x] 创建 GitHub Actions 工作流配置文件（.github/workflows/deploy.yml）
 - [x] 创建部署说明文档（DEPLOYMENT.md）
 - [x] 配置 GitHub Secrets（18个环境变量）
-- [ ] 初始化腾讯云服务器（安装 PM2、创建数据库）
+- [x] 初始化腾讯云服务器（安装 PM2、创建数据库）
 - [ ] 测试首次自动部署
 - [ ] 配置域名解析（wangzuo250.cn）
 

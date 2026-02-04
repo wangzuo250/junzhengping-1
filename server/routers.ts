@@ -102,7 +102,7 @@ export const appRouter = router({
       .input(z.object({
         topics: z.array(z.object({
           content: z.string().min(1, "选题内容不能为空"),
-          suggestedFormat: z.string(),
+          suggestedFormat: z.array(z.string()).min(1, "请至少选择一种建议形式"),
         })),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -113,7 +113,7 @@ export const appRouter = router({
           userId: ctx.user.id,
           collectionFormId: form.id,
           content: topic.content,
-          suggestedFormat: topic.suggestedFormat,
+          suggestedFormat: topic.suggestedFormat.join(','), // 数组转为逗号分隔字符串
         }));
 
         await db.createSubmissions(submissionList);

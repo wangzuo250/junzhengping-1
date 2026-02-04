@@ -50,7 +50,7 @@ export const submissions = mysqlTable("submissions", {
   userId: int("userId").notNull(), // 提交人ID
   collectionFormId: int("collectionFormId").notNull(), // 关联的收集表ID
   content: text("content").notNull(), // 选题内容
-  suggestedFormat: varchar("suggestedFormat", { length: 100 }).notNull(), // 建议形式：钧评、快评、视频等
+  suggestedFormat: text("suggestedFormat").notNull(), // 建议形式（逗号分隔，支持多选）：钧评,快评,视频等
   submittedAt: timestamp("submittedAt").defaultNow().notNull(),
 });
 

@@ -1,0 +1,1 @@
+ALTER TABLE `submissions` MODIFY COLUMN `suggestedFormat` text NOT NULL;

@@ -3,13 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
@@ -21,20 +15,20 @@ import { Link, useLocation } from "wouter";
 interface TopicItem {
   id: string;
   content: string;
-  suggestedFormat: string;
+  suggestedFormat: string[]; // 改为数组，支持多选
 }
 
 export default function TopicForm() {
   const { user, isAuthenticated, loading } = useAuth();
   const [, setLocation] = useLocation();
   const [topics, setTopics] = useState<TopicItem[]>([
-    { id: crypto.randomUUID(), content: "", suggestedFormat: "钧评" }
+    { id: crypto.randomUUID(), content: "", suggestedFormat: [] } // 默认空数组
   ]);
 
   const submitMutation = trpc.submissions.submit.useMutation({
     onSuccess: (data) => {
       toast.success(`成功提交 ${data.count} 条选题！`);
-      setTopics([{ id: crypto.randomUUID(), content: "", suggestedFormat: "钧评" }]);
+      setTopics([{ id: crypto.randomUUID(), content: "", suggestedFormat: [] }]);
       setLocation("/summary");
     },
     onError: (error) => {
@@ -43,7 +37,7 @@ export default function TopicForm() {
   });
 
   const addTopic = () => {
-    setTopics([...topics, { id: crypto.randomUUID(), content: "", suggestedFormat: "钧评" }]);
+    setTopics([...topics, { id: crypto.randomUUID(), content: "", suggestedFormat: [] }]);
   };
 
   const removeTopic = (id: string) => {
@@ -54,8 +48,20 @@ export default function TopicForm() {
     setTopics(topics.filter(t => t.id !== id));
   };
 
-  const updateTopic = (id: string, field: keyof TopicItem, value: string) => {
+  const updateTopic = (id: string, field: keyof TopicItem, value: string | string[]) => {
     setTopics(topics.map(t => t.id === id ? { ...t, [field]: value } : t));
+  };
+
+  const toggleFormat = (topicId: string, format: string) => {
+    setTopics(topics.map(t => {
+      if (t.id !== topicId) return t;
+      const formats = t.suggestedFormat;
+      if (formats.includes(format)) {
+        return { ...t, suggestedFormat: formats.filter(f => f !== format) };
+      } else {
+        return { ...t, suggestedFormat: [...formats, format] };
+      }
+    }));
   };
 
   const handleSubmit = () => {
@@ -63,6 +69,12 @@ export default function TopicForm() {
     const emptyTopics = topics.filter(t => !t.content.trim());
     if (emptyTopics.length > 0) {
       toast.error("请填写所有选题内容");
+      return;
+    }
+
+    const noFormatTopics = topics.filter(t => t.suggestedFormat.length === 0);
+    if (noFormatTopics.length > 0) {
+      toast.error("请为每个选题至少选择一种建议形式");
       return;
     }
 
@@ -202,25 +214,30 @@ export default function TopicForm() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor={`format-${topic.id}`}>
+                  <div className="space-y-3">
+                    <Label>
                       建议形式 <span className="text-destructive">*</span>
+                      <span className="text-sm font-normal text-muted-foreground ml-2">
+                        （可多选）
+                      </span>
                     </Label>
-                    <Select
-                      value={topic.suggestedFormat}
-                      onValueChange={(value) => updateTopic(topic.id, "suggestedFormat", value)}
-                    >
-                      <SelectTrigger id={`format-${topic.id}`} className="max-w-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="钧评">钧评</SelectItem>
-                        <SelectItem value="快评">快评</SelectItem>
-                        <SelectItem value="视频">视频</SelectItem>
-                        <SelectItem value="文章">文章</SelectItem>
-                        <SelectItem value="其他">其他</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap gap-4">
+                      {['钧评', '快评', '视频', '文章', '其他'].map(format => (
+                        <div key={format} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`${topic.id}-${format}`}
+                            checked={topic.suggestedFormat.includes(format)}
+                            onCheckedChange={() => toggleFormat(topic.id, format)}
+                          />
+                          <Label
+                            htmlFor={`${topic.id}-${format}`}
+                            className="font-normal cursor-pointer"
+                          >
+                            {format}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}

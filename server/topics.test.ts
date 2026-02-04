@@ -36,8 +36,8 @@ describe("submissions router", () => {
 
     const result = await caller.submissions.submit({
       topics: [
-        { content: "测试选题1", suggestedFormat: "钧评" },
-        { content: "测试选题2", suggestedFormat: "快评" },
+        { content: "测试选题1", suggestedFormat: ["钧评"] },
+        { content: "测试选题2", suggestedFormat: ["快评", "视频"] },
       ],
     });
 

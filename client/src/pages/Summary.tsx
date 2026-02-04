@@ -98,10 +98,10 @@ export default function Summary() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
   
-  // 从URL参数获取日期
+  // 从 URL 参数获取日期和 submissionId
   const urlParams = new URLSearchParams(location.split('?')[1]);
   const urlDate = urlParams.get('date');
-  
+  const highlightSubmissionId = urlParams.get('submissionId') ? parseInt(urlParams.get('submissionId')!) : null; 
   const [startDate, setStartDate] = useState(urlDate || format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(urlDate || format(new Date(), 'yyyy-MM-dd'));
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
@@ -420,7 +420,10 @@ export default function Summary() {
                           const isFirstRow = rowIndex === 0;
                           
                           return (
-                            <TableRow key={`${submission.id}-${rowIndex}`}>
+                            <TableRow 
+                              key={`${submission.id}-${rowIndex}`}
+                              className={highlightSubmissionId === submission.id ? "bg-yellow-50" : ""}
+                            >
                               {isFirstRow && (
                                 <TableCell rowSpan={maxRows} className="align-top">
                                   {submission.submitterName}

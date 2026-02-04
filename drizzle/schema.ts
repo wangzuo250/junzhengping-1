@@ -154,3 +154,19 @@ export const systemLogs = mysqlTable("system_logs", {
 
 export type SystemLog = typeof systemLogs.$inferSelect;
 export type InsertSystemLog = typeof systemLogs.$inferInsert;
+
+/**
+ * 选题状态变更历史表 - 记录入选选题的进度和状态变更
+ */
+export const topicStatusHistory = mysqlTable("topic_status_history", {
+  id: int("id").autoincrement().primaryKey(),
+  selectedTopicId: int("selectedTopicId").notNull(), // 关联的入选选题ID
+  fieldName: varchar("fieldName", { length: 50 }).notNull(), // 变更的字段名（progress 或 status）
+  oldValue: varchar("oldValue", { length: 50 }), // 旧值
+  newValue: varchar("newValue", { length: 50 }).notNull(), // 新值
+  changedBy: int("changedBy").notNull(), // 操作人ID
+  changedAt: timestamp("changedAt").defaultNow().notNull(), // 变更时间
+});
+
+export type TopicStatusHistory = typeof topicStatusHistory.$inferSelect;
+export type InsertTopicStatusHistory = typeof topicStatusHistory.$inferInsert;

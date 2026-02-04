@@ -9,6 +9,7 @@ import {
   submissionProjects,
   selectedTopics,
   systemLogs,
+  topicStatusHistory,
   type CollectionForm,
   type Submission,
   type SubmissionTopic,
@@ -19,7 +20,9 @@ import {
   type InsertSubmissionTopic,
   type InsertSubmissionProject,
   type InsertSelectedTopic,
-  type InsertSystemLog
+  type InsertSystemLog,
+  type TopicStatusHistory,
+  type InsertTopicStatusHistory
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { format } from 'date-fns';
@@ -514,6 +517,19 @@ export async function getAllSelectedTopics() {
     .orderBy(desc(selectedTopics.selectedDate));
 }
 
+export async function getSelectedTopicById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select()
+    .from(selectedTopics)
+    .where(eq(selectedTopics.id, id))
+    .limit(1);
+  
+  return result[0] || null;
+}
+
 export async function getSelectedTopicBySourceId(sourceSubmissionId: number) {
   const db = await getDb();
   if (!db) return null;
@@ -626,4 +642,37 @@ export async function createSystemLog(data: InsertSystemLog) {
   if (!db) throw new Error("Database not available");
 
   await db.insert(systemLogs).values(data);
+}
+
+
+// ============ 选题状态变更历史相关 ============
+
+/**
+ * 记录选题状态变更
+ */
+export async function recordStatusChange(data: InsertTopicStatusHistory): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot record status change: database not available");
+    return;
+  }
+  
+  await db.insert(topicStatusHistory).values(data);
+}
+
+/**
+ * 获取选题的状态变更历史
+ */
+export async function getTopicStatusHistory(selectedTopicId: number): Promise<TopicStatusHistory[]> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get status history: database not available");
+    return [];
+  }
+  
+  return await db
+    .select()
+    .from(topicStatusHistory)
+    .where(eq(topicStatusHistory.selectedTopicId, selectedTopicId))
+    .orderBy(desc(topicStatusHistory.changedAt));
 }

@@ -11,17 +11,58 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { format, isToday } from "date-fns";
-import { Calendar, Edit2, FileText, Plus, Star, TrendingUp, Trash2 } from "lucide-react";
+import { Calendar, Clock, Edit2, FileText, Plus, Star, TrendingUp, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
 // 建议形式分类
 const FORMAT_CATEGORIES = {
-  文字类: ["钧评", "长文"],
+  文字类: ["钛评", "长文"],
   视频类: ["短视频", "长视频", "记者实拍"],
   图片类: ["海报", "组图", "漫画"],
 };
+
+// 状态变更历史时间轴组件
+function StatusHistoryTimeline({ selectedTopicId }: { selectedTopicId: number }) {
+  const { data: history, isLoading } = trpc.selectedTopics.getStatusHistory.useQuery({ selectedTopicId });
+
+  if (isLoading) {
+    return <div className="text-sm text-gray-500">加载中...</div>;
+  }
+
+  if (!history || history.length === 0) {
+    return <div className="text-sm text-gray-500">暂无变更历史</div>;
+  }
+
+  return (
+    <div className="space-y-3 max-h-60 overflow-y-auto">
+      {history.map((item, index) => (
+        <div key={item.id} className="flex gap-3">
+          <div className="flex flex-col items-center">
+            <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
+            {index < history.length - 1 && <div className="w-0.5 h-full bg-gray-200 mt-1" />}
+          </div>
+          <div className="flex-1 pb-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="w-3 h-3 text-gray-400" />
+              <span className="text-gray-500">{format(new Date(item.changedAt), 'yyyy-MM-dd HH:mm')}</span>
+            </div>
+            <div className="mt-1 text-sm">
+              <span className="font-medium">
+                {item.fieldName === 'progress' ? '进度' : '状态'}
+              </span>
+              <span className="text-gray-600"> 从 </span>
+              <span className="text-red-600">{item.oldValue || '无'}</span>
+              <span className="text-gray-600"> 变更为 </span>
+              <span className="text-green-600">{item.newValue}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Personal() {
   const { user, isAuthenticated } = useAuth();
@@ -44,13 +85,16 @@ export default function Personal() {
     relatedLink: "",
   });
   const [progressForm, setProgressForm] = useState<{
+    id?: number;
     progress: "未开始" | "进行中" | "已完成" | "已暂停" | "" | undefined;
     status: "未发布" | "已发布" | "否决" | "" | undefined;
     note: string;
+    leaderComment: string;
   }>({
     progress: "",
     status: "",
     note: "",
+    leaderComment: "",
   });
 
   // 获取个人统计数据（如果是查看其他用户，传入 userId）
@@ -136,9 +180,11 @@ export default function Personal() {
   const handleEditProgress = (topic: any) => {
     setSelectedSelectedTopic(topic);
     setProgressForm({
+      id: topic.id,
       progress: topic.progress || "",
       status: topic.status || "",
-      note: topic.note || "",
+      note: topic.remark || "",
+      leaderComment: topic.leaderComment || "",
     });
     setEditProgressDialogOpen(true);
   };
@@ -161,7 +207,10 @@ export default function Personal() {
 
   const handleSaveProgress = () => {
     if (!selectedSelectedTopic) return;
-    const data: any = { note: progressForm.note };
+    const data: any = { 
+      remark: progressForm.note,
+      leaderComment: progressForm.leaderComment 
+    };
     if (progressForm.progress) {
       data.progress = progressForm.progress;
     }
@@ -468,15 +517,30 @@ export default function Personal() {
                         {format(new Date(topic.createdAt), 'yyyy-MM-dd')}
                       </TableCell>
                       <TableCell className="text-right">
-                        {!isViewingOtherUser && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditProgress(topic)}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                        )}
+                        <div className="flex items-center justify-end gap-2">
+                          {topic.sourceSubmissionId && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // 获取原始提交的日期，然后跳转到汇总页面
+                                window.location.href = `/summary?submissionId=${topic.sourceSubmissionId}`;
+                              }}
+                              title="查看原始提报"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {!isViewingOtherUser && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditProgress(topic)}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -742,7 +806,29 @@ export default function Personal() {
                 rows={3}
               />
             </div>
+            {user?.role === 'admin' && (
+              <div>
+                <Label htmlFor="leaderComment">领导点评</Label>
+                <Textarea
+                  id="leaderComment"
+                  value={progressForm.leaderComment}
+                  onChange={(e) => setProgressForm({ ...progressForm, leaderComment: e.target.value })}
+                  placeholder="请输入领导点评"
+                  className="mt-1"
+                  rows={3}
+                />
+              </div>
+            )}
           </div>
+          
+          {/* 状态变更历史 */}
+          {progressForm.id && (
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium mb-3">状态变更历史</h4>
+              <StatusHistoryTimeline selectedTopicId={progressForm.id} />
+            </div>
+          )}
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditProgressDialogOpen(false)}>
               取消

@@ -502,7 +502,38 @@ export const appRouter = router({
           }
         }
 
+        // 获取更新前的数据，用于记录变更历史
+        const oldTopic = await db.getSelectedTopicById(input.id);
+        if (!oldTopic) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: '选题不存在',
+          });
+        }
+
+        // 更新选题
         await db.updateSelectedTopic(input.id, input.data);
+
+        // 记录状态变更历史
+        if (input.data.progress && input.data.progress !== oldTopic.progress) {
+          await db.recordStatusChange({
+            selectedTopicId: input.id,
+            fieldName: 'progress',
+            oldValue: oldTopic.progress,
+            newValue: input.data.progress,
+            changedBy: ctx.user.id,
+          });
+        }
+        if (input.data.status && input.data.status !== oldTopic.status) {
+          await db.recordStatusChange({
+            selectedTopicId: input.id,
+            fieldName: 'status',
+            oldValue: oldTopic.status,
+            newValue: input.data.status,
+            changedBy: ctx.user.id,
+          });
+        }
+
         return { success: true };
       }),
 
@@ -569,6 +600,15 @@ export const appRouter = router({
           data: buffer.toString('base64'),
           filename: `选题统计报告_${input.monthKeys.join('_')}.xlsx`,
         };
+      }),
+
+    // 获取选题状态变更历史
+    getStatusHistory: protectedProcedure
+      .input(z.object({
+        selectedTopicId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        return await db.getTopicStatusHistory(input.selectedTopicId);
       }),
 
     // 获取个人入选选题

@@ -27,12 +27,13 @@ export default function SelectedTopics() {
   
   // 筛选状态
   const [filters, setFilters] = useState({
-    submitter: "",
+    submitters: [] as string[], // 改为数组，支持多选
     startDate: "",
     endDate: "",
     progress: "" as "" | "未开始" | "进行中" | "已完成" | "已暂停",
     status: "" as "" | "未发布" | "已发布" | "否决",
   });
+  const [showSubmitterFilter, setShowSubmitterFilter] = useState(false);
   const [editForm, setEditForm] = useState({
     leaderComment: "",
     creators: "",
@@ -97,8 +98,7 @@ export default function SelectedTopics() {
   const handleSave = () => {
     if (!editingTopic) return;
 
-    const updates: any = {
-      id: editingTopic.id,
+    const data: any = {
       leaderComment: editForm.leaderComment,
       creators: editForm.creators,
       progress: editForm.progress,
@@ -108,11 +108,14 @@ export default function SelectedTopics() {
 
     // 管理员可以编辑所有字段
     if (user?.role === "admin") {
-      updates.content = editForm.content;
-      updates.suggestion = editForm.suggestion;
+      data.content = editForm.content;
+      data.suggestion = editForm.suggestion;
     }
 
-    updateMutation.mutate(updates);
+    updateMutation.mutate({
+      id: editingTopic.id,
+      data,
+    });
   };
 
   const handleDelete = (id: number) => {
@@ -142,8 +145,11 @@ export default function SelectedTopics() {
       // 按月份筛选
       if (selectedMonth && topic.monthKey !== selectedMonth) return false;
       
-      // 按提报人筛选
-      if (filters.submitter && !topic.submitters.includes(filters.submitter)) return false;
+      // 按提报人筛选（多选）
+      if (filters.submitters.length > 0) {
+        const hasMatch = filters.submitters.some(name => topic.submitters.includes(name));
+        if (!hasMatch) return false;
+      }
       
       // 按时间筛选
       if (filters.startDate && topic.selectedDate < filters.startDate) return false;
@@ -246,12 +252,53 @@ export default function SelectedTopics() {
                 {/* 提报人筛选 */}
                 <div>
                   <Label>提报人</Label>
-                  <Input
-                    className="mt-2"
-                    placeholder="输入提报人姓名"
-                    value={filters.submitter}
-                    onChange={(e) => setFilters({ ...filters, submitter: e.target.value })}
-                  />
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      className="w-full mt-2 justify-between"
+                      onClick={() => setShowSubmitterFilter(!showSubmitterFilter)}
+                    >
+                      {filters.submitters.length === 0
+                        ? "全部提报人"
+                        : `已选 ${filters.submitters.length} 人`}
+                      <Filter className="w-4 h-4" />
+                    </Button>
+                    {showSubmitterFilter && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        <div className="p-2 space-y-2">
+                          {Array.from(
+                            new Set(
+                              topics?.flatMap((t: any) =>
+                                t.submitters.split(",").map((s: string) => s.trim())
+                              ) || []
+                            )
+                          )
+                            .sort()
+                            .map((name: string) => (
+                              <div key={name} className="flex items-center space-x-2">
+                                <Checkbox
+                                  checked={filters.submitters.includes(name)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setFilters({
+                                        ...filters,
+                                        submitters: [...filters.submitters, name],
+                                      });
+                                    } else {
+                                      setFilters({
+                                        ...filters,
+                                        submitters: filters.submitters.filter((n) => n !== name),
+                                      });
+                                    }
+                                  }}
+                                />
+                                <label className="text-sm cursor-pointer">{name}</label>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* 进度筛选 */}
@@ -317,12 +364,13 @@ export default function SelectedTopics() {
                   onClick={() => {
                     setSelectedMonth(undefined);
                     setFilters({
-                      submitter: "",
+                      submitters: [],
                       startDate: "",
                       endDate: "",
                       progress: "",
                       status: "",
                     });
+                    setShowSubmitterFilter(false);
                   }}
                 >
                   清空筛选

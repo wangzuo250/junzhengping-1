@@ -1,0 +1,50 @@
+{
+  "query": "SELECT id, content, submitters FROM selected_topics LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2QT84xGnBKUugNF.root --database g5LX4x79UdX68RxpKYLQF9 --execute SELECT id, content, submitters FROM selected_topics LIMIT 10;",
+  "rows": [
+    {
+      "id": "1",
+      "content": "测试入选选题",
+      "submitters": "Test User"
+    },
+    {
+      "id": "2",
+      "content": "重复测试选题",
+      "submitters": "User A, User B"
+    },
+    {
+      "id": "3",
+      "content": "待更新选题",
+      "submitters": "Test User"
+    },
+    {
+      "id": "4",
+      "content": "测试权限选题",
+      "submitters": "Test User"
+    },
+    {
+      "id": "120001",
+      "content": "测试管理员直接创建的入选选题",
+      "submitters": "管理员"
+    },
+    {
+      "id": "120002",
+      "content": "新能源汽车产业链深度调研",
+      "submitters": "李四"
+    },
+    {
+      "id": "120003",
+      "content": "就这吧喊我。",
+      "submitters": "王祚"
+    },
+    {
+      "id": "120004",
+      "content": "几节课i期结束你到哪",
+      "submitters": "王祚"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcontent\tsubmitters\n1\t测试入选选题\tTest User\n2\t重复测试选题\tUser A, User B\n3\t待更新选题\tTest User\n4\t测试权限选题\tTest User\n120001\t测试管理员直接创建的入选选题\t管理员\n120002\t新能源汽车产业链深度调研\t李四\n120003\t就这吧喊我。\t王祚\n120004\t几节课i期结束你到哪\t王祚\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}

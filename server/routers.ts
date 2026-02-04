@@ -216,7 +216,7 @@ export const appRouter = router({
         const id = await db.createSelectedTopic({
           content: topic.content || '',
           suggestion: topic.suggestedFormat || null,
-          submitters: String(topic.submitterId),
+          submitters: topic.submitterName || '未知用户',
           selectedDate: new Date(today),
           monthKey,
           sourceSubmissionId: topic.submissionId,

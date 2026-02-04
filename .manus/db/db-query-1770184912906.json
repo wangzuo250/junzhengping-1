@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE selected_topics st\nJOIN users u ON CAST(st.submitters AS UNSIGNED) = u.id\nSET st.submitters = COALESCE(u.name, u.username, '未知用户')\nWHERE st.submitters REGEXP '^[0-9]+$';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2QT84xGnBKUugNF.root --database g5LX4x79UdX68RxpKYLQF9 --execute UPDATE selected_topics st\nJOIN users u ON CAST(st.submitters AS UNSIGNED) = u.id\nSET st.submitters = COALESCE(u.name, u.username, '未知用户')\nWHERE st.submitters REGEXP '^[0-9]+$';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 75
+}

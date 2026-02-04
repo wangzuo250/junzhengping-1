@@ -102,7 +102,9 @@ export default function TopicForm() {
         note: "",
       }]);
       setCustomFormats({});
-      setLocation("/summary");
+      // 跳转到汇总页面，带上当前日期参数
+      const today = format(new Date(), 'yyyy-MM-dd');
+      setLocation(`/summary?date=${today}`);
     },
     onError: (error) => {
       toast.error(`提交失败：${error.message}`);

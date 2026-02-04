@@ -512,6 +512,9 @@ export const appRouter = router({
         data: z.object({
           content: z.string().optional(),
           suggestedFormat: z.string().optional(),
+          creativeIdea: z.string().optional(),
+          creator: z.string().optional(),
+          relatedLink: z.string().optional(),
         }),
       }))
       .mutation(async ({ input, ctx }) => {

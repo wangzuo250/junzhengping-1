@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { Calendar, Table as TableIcon, LayoutGrid } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 export default function Summary() {
   const { user, isAuthenticated } = useAuth();
@@ -29,18 +30,61 @@ export default function Summary() {
   const urlParams = new URLSearchParams(location.split('?')[1]);
   const urlDate = urlParams.get('date');
   
-  const [selectedDate, setSelectedDate] = useState(urlDate || format(new Date(), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(urlDate || format(new Date(), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(urlDate || format(new Date(), 'yyyy-MM-dd'));
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
   
-  const { data, refetch } = trpc.submissions.getByDate.useQuery({ date: selectedDate });
+  const { data, refetch } = trpc.submissions.getByDate.useQuery({ 
+    startDate, 
+    endDate: startDate === endDate ? undefined : endDate 
+  });
 
   // 当URL日期参数变化时，更新选择的日期
   useEffect(() => {
     if (urlDate) {
-      setSelectedDate(urlDate);
+      setStartDate(urlDate);
+      setEndDate(urlDate);
     }
   }, [urlDate]);
+
+  // 快捷查询：当周
+  const handleThisWeek = () => {
+    const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // 周一开始
+    const weekEnd = endOfWeek(today, { weekStartsOn: 1 }); // 周日结束
+    setStartDate(format(weekStart, 'yyyy-MM-dd'));
+    setEndDate(format(weekEnd, 'yyyy-MM-dd'));
+  };
+
+  // 快捷查询：当月
+  const handleThisMonth = () => {
+    const today = new Date();
+    const monthStart = startOfMonth(today);
+    const monthEnd = endOfMonth(today);
+    setStartDate(format(monthStart, 'yyyy-MM-dd'));
+    setEndDate(format(monthEnd, 'yyyy-MM-dd'));
+  };
+
+  // 查询按钮点击
+  const handleQuery = () => {
+    // 验证日期范围（最多3个月）
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const daysDiff = differenceInDays(end, start);
+    
+    if (daysDiff < 0) {
+      toast.error("结束日期不能早于开始日期");
+      return;
+    }
+    
+    if (daysDiff > 90) {
+      toast.error("日期范围最多3个月（90天）");
+      return;
+    }
+    
+    refetch();
+  };
 
   const toggleUserSelection = (userId: number) => {
     const newSet = new Set(selectedUsers);
@@ -79,16 +123,32 @@ export default function Summary() {
     );
   }
 
+  // 获取唯一用户列表（去重）
+  const uniqueUsers = Array.from(
+    new Map(
+      (data?.submissions || []).map(s => [s.userId, { id: s.userId, name: s.submitterName }])
+    ).values()
+  );
+
+  // 统计信息
+  const totalTopics = filteredSubmissions.reduce((sum, s) => sum + s.topics.length, 0);
+  const totalProjects = filteredSubmissions.reduce((sum, s) => sum + s.projects.length, 0);
+
+  // 生成页面标题
+  const pageTitle = startDate === endDate 
+    ? `${startDate} 选题汇总`
+    : `${startDate} 至 ${endDate} 选题汇总`;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">每日选题汇总</h1>
-          <p className="text-muted-foreground">查看指定日期的选题提交情况，支持表格视图和数据筛选</p>
-        </div>
+        <h1 className="text-3xl font-bold mb-6">{pageTitle}</h1>
+        <p className="text-muted-foreground mb-8">
+          查看指定日期范围的选题提交情况，支持表格视图和数据筛选
+        </p>
 
-        {/* 日期选择和视图切换 */}
+        {/* 日期选择与视图模式 */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -96,159 +156,152 @@ export default function Summary() {
               日期选择与视图模式
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row items-start md:items-end gap-4">
-              <div className="flex-1 max-w-xs">
-                <Label htmlFor="date">日期</Label>
+          <CardContent className="space-y-4">
+            {/* 日期范围选择 */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="startDate">开始日期</Label>
                 <Input
-                  id="date"
+                  id="startDate"
                   type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="mt-1"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
                 />
               </div>
-              <Button onClick={() => refetch()}>查询</Button>
-              <div className="flex items-center gap-2 ml-auto">
-                <Button
-                  variant={viewMode === "table" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("table")}
-                >
-                  <TableIcon className="w-4 h-4 mr-1" />
-                  表格视图
-                </Button>
-                <Button
-                  variant={viewMode === "card" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("card")}
-                >
-                  <LayoutGrid className="w-4 h-4 mr-1" />
-                  卡片视图
+              <div>
+                <Label htmlFor="endDate">结束日期</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button onClick={handleQuery} className="w-full">
+                  查询
                 </Button>
               </div>
+              <div className="flex items-end gap-2">
+                <Button onClick={handleThisWeek} variant="outline" className="flex-1">
+                  当周
+                </Button>
+                <Button onClick={handleThisMonth} variant="outline" className="flex-1">
+                  当月
+                </Button>
+              </div>
+            </div>
+
+            {/* 视图切换 */}
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === "table" ? "default" : "outline"}
+                onClick={() => setViewMode("table")}
+                className="flex items-center gap-2"
+              >
+                <TableIcon className="w-4 h-4" />
+                表格视图
+              </Button>
+              <Button
+                variant={viewMode === "card" ? "default" : "outline"}
+                onClick={() => setViewMode("card")}
+                className="flex items-center gap-2"
+              >
+                <LayoutGrid className="w-4 h-4" />
+                卡片视图
+              </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* 用户筛选 */}
-        {data && data.submissions.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>用户筛选</CardTitle>
-                {selectedUsers.size > 0 && (
-                  <Button variant="ghost" size="sm" onClick={clearUserSelection}>
-                    清空筛选
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-4">
-                {Array.from(new Map(data.submissions.map(s => [s.userId, s])).values()).map((submission) => (
-                  <div key={submission.userId} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`user-${submission.userId}`}
-                      checked={selectedUsers.has(submission.userId)}
-                      onCheckedChange={() => toggleUserSelection(submission.userId)}
-                    />
-                    <label
-                      htmlFor={`user-${submission.userId}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {submission.userName}
-                    </label>
-                  </div>
-                ))}
-              </div>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>用户筛选</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              {uniqueUsers.map(u => (
+                <div key={u.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`user-${u.id}`}
+                    checked={selectedUsers.has(u.id)}
+                    onCheckedChange={() => toggleUserSelection(u.id)}
+                  />
+                  <label htmlFor={`user-${u.id}`} className="text-sm cursor-pointer">
+                    {u.name}
+                  </label>
+                </div>
+              ))}
               {selectedUsers.size > 0 && (
-                <p className="text-sm text-muted-foreground mt-4">
-                  已选择 {selectedUsers.size} 个用户，显示 {filteredSubmissions.length} 条记录
-                </p>
+                <Button variant="ghost" size="sm" onClick={clearUserSelection}>
+                  清空筛选
+                </Button>
               )}
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 统计信息 */}
-        {data && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  提交人数
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {selectedUsers.size === 0 ? data.submissions.length : selectedUsers.size}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  选题总数
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {filteredSubmissions.reduce((sum, s) => sum + s.topics.length, 0)}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  项目总数
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {filteredSubmissions.reduce((sum, s) => sum + s.projects.length, 0)}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  显示记录
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{filteredSubmissions.length}</div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">提交人数</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{uniqueUsers.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">选题总数</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalTopics}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">项目总数</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalProjects}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">显示记录</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{filteredSubmissions.length}</div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* 表格视图 */}
-        {viewMode === "table" && data && (
+        {viewMode === "table" && (
           <Card>
             <CardHeader>
               <CardTitle>表格视图</CardTitle>
             </CardHeader>
             <CardContent>
               {filteredSubmissions.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground">
-                  {selectedUsers.size > 0 ? "筛选后无数据" : "该日期暂无提交记录"}
-                </div>
+                <p className="text-center text-muted-foreground py-8">暂无数据</p>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-24">姓名</TableHead>
-                        <TableHead className="min-w-[200px]">选题内容</TableHead>
-                        <TableHead className="min-w-[150px]">建议形式</TableHead>
-                        <TableHead className="min-w-[200px]">创作思路</TableHead>
-                        <TableHead className="w-32">创作者</TableHead>
-                        <TableHead className="min-w-[150px]">相关链接</TableHead>
-                        <TableHead className="min-w-[150px]">项目进度</TableHead>
-                        <TableHead className="min-w-[200px]">长期策划</TableHead>
-                        <TableHead className="min-w-[200px]">工作建议</TableHead>
-                        <TableHead className="min-w-[200px]">风险提示</TableHead>
+                        <TableHead>姓名</TableHead>
+                        <TableHead>选题内容</TableHead>
+                        <TableHead>建议形式</TableHead>
+                        <TableHead>创作思路</TableHead>
+                        <TableHead>创作者</TableHead>
+                        <TableHead>相关链接</TableHead>
+                        <TableHead>项目进度</TableHead>
+                        <TableHead>长期策划</TableHead>
+                        <TableHead>工作建议</TableHead>
+                        <TableHead>风险提示</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -262,29 +315,27 @@ export default function Summary() {
                           return (
                             <TableRow key={`${submission.id}-${rowIndex}`}>
                               {isFirstRow && (
-                                <TableCell rowSpan={maxRows} className="align-top font-medium">
-                                  {submission.userName}
+                                <TableCell rowSpan={maxRows} className="align-top">
+                                  {submission.submitterName}
                                 </TableCell>
                               )}
                               <TableCell className="align-top">
-                                {topic?.content || "-"}
+                                {topic?.content || '-'}
                               </TableCell>
                               <TableCell className="align-top">
                                 {topic?.suggestedFormat ? (
                                   <div className="flex flex-wrap gap-1">
                                     {topic.suggestedFormat.split(',').map((format, i) => (
-                                      <Badge key={i} variant="secondary" className="text-xs">
-                                        {format.trim()}
-                                      </Badge>
+                                      <Badge key={i} variant="secondary">{format}</Badge>
                                     ))}
                                   </div>
-                                ) : "-"}
+                                ) : '-'}
                               </TableCell>
                               <TableCell className="align-top">
-                                {topic?.creativeIdea || "-"}
+                                {topic?.creativeIdea || '-'}
                               </TableCell>
                               <TableCell className="align-top">
-                                {topic?.creator || "-"}
+                                {topic?.creator || '-'}
                               </TableCell>
                               <TableCell className="align-top">
                                 {topic?.relatedLink ? (
@@ -292,27 +343,24 @@ export default function Summary() {
                                     href={topic.relatedLink} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="text-primary hover:underline text-sm"
+                                    className="text-blue-600 hover:underline"
                                   >
-                                    查看链接
+                                    链接
                                   </a>
-                                ) : "-"}
+                                ) : '-'}
                               </TableCell>
                               <TableCell className="align-top">
                                 {project ? (
                                   <div className="space-y-1">
-                                    {project.projectName && (
-                                      <div className="text-sm font-medium">{project.projectName}</div>
-                                    )}
+                                    <div className="font-medium">{project.projectName || '-'}</div>
                                     {project.progress && (
                                       <Badge 
                                         variant={
-                                          project.progress === "已结束" ? "default" :
-                                          project.progress === "已开始" ? "secondary" :
-                                          project.progress === "暂停" ? "destructive" :
-                                          "outline"
+                                          project.progress === '已开始' ? 'default' :
+                                          project.progress === '已结束' ? 'secondary' :
+                                          project.progress === '暂停' ? 'destructive' :
+                                          'outline'
                                         }
-                                        className="text-xs"
                                       >
                                         {project.progress}
                                       </Badge>
@@ -321,18 +369,18 @@ export default function Summary() {
                                       <div className="text-xs text-muted-foreground">{project.note}</div>
                                     )}
                                   </div>
-                                ) : "-"}
+                                ) : '-'}
                               </TableCell>
                               {isFirstRow && (
                                 <>
                                   <TableCell rowSpan={maxRows} className="align-top">
-                                    {submission.longTermPlan || "-"}
+                                    {submission.longTermPlan || '-'}
                                   </TableCell>
                                   <TableCell rowSpan={maxRows} className="align-top">
-                                    {submission.workSuggestion || "-"}
+                                    {submission.workSuggestion || '-'}
                                   </TableCell>
                                   <TableCell rowSpan={maxRows} className="align-top">
-                                    {submission.riskWarning || "-"}
+                                    {submission.riskWarning || '-'}
                                   </TableCell>
                                 </>
                               )}
@@ -348,160 +396,148 @@ export default function Summary() {
           </Card>
         )}
 
-        {/* 卡片视图（保留原有实现） */}
-        {viewMode === "card" && data && (
-          <div className="space-y-4">
+        {/* 卡片视图 */}
+        {viewMode === "card" && (
+          <div className="space-y-6">
             {filteredSubmissions.length === 0 ? (
               <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  {selectedUsers.size > 0 ? "筛选后无数据" : "该日期暂无提交记录"}
+                <CardContent className="py-8">
+                  <p className="text-center text-muted-foreground">暂无数据</p>
                 </CardContent>
               </Card>
             ) : (
               filteredSubmissions.map((submission) => (
-                <Card key={submission.id} className="overflow-hidden">
-                  <CardHeader className="bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{submission.userName}</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          提交时间：{format(new Date(submission.submittedAt), 'yyyy-MM-dd HH:mm:ss')}
-                        </p>
-                        <div className="flex items-center gap-4 mt-2 text-sm">
-                          <span className="text-muted-foreground">
-                            {submission.topics.length} 条选题
-                          </span>
-                          <span className="text-muted-foreground">
-                            {submission.projects.length} 个项目
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                <Card key={submission.id}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{submission.submitterName} 的提交</span>
+                      <span className="text-sm text-muted-foreground">
+                        {format(new Date(submission.submittedAt), 'yyyy-MM-dd HH:mm')}
+                      </span>
+                    </CardTitle>
                   </CardHeader>
-                  
-                  <CardContent className="pt-6 space-y-6">
-                    {/* 基本信息 */}
-                    {(submission.longTermPlan || submission.workSuggestion || submission.riskWarning) && (
-                      <div className="space-y-3 border-t pt-4">
-                        <h4 className="font-semibold text-sm">其他信息</h4>
-                        {submission.longTermPlan && (
-                          <div>
-                            <Label className="text-xs text-muted-foreground">长期策划</Label>
-                            <p className="text-sm mt-1">{submission.longTermPlan}</p>
-                          </div>
-                        )}
-                        {submission.workSuggestion && (
-                          <div>
-                            <Label className="text-xs text-muted-foreground">工作建议</Label>
-                            <p className="text-sm mt-1">{submission.workSuggestion}</p>
-                          </div>
-                        )}
-                        {submission.riskWarning && (
-                          <div>
-                            <Label className="text-xs text-muted-foreground">风险提示</Label>
-                            <p className="text-sm mt-1">{submission.riskWarning}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
+                  <CardContent className="space-y-6">
                     {/* 选题列表 */}
                     {submission.topics.length > 0 && (
-                      <div className="space-y-3 border-t pt-4">
-                        <h4 className="font-semibold text-sm">选题列表</h4>
-                        {submission.topics.map((topic, index) => (
-                          <div key={topic.id} className="border rounded-lg p-3 bg-muted/30">
-                            <div className="flex items-start justify-between mb-2">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                选题 {index + 1}
-                              </span>
-                            </div>
-                            {topic.content && (
-                              <div className="mb-2">
-                                <Label className="text-xs text-muted-foreground">内容</Label>
-                                <p className="text-sm mt-1">{topic.content}</p>
-                              </div>
-                            )}
-                            {topic.suggestedFormat && (
-                              <div className="mb-2">
-                                <Label className="text-xs text-muted-foreground">建议形式</Label>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {topic.suggestedFormat.split(',').map((format, i) => (
-                                    <Badge key={i} variant="secondary" className="text-xs">
-                                      {format.trim()}
-                                    </Badge>
-                                  ))}
+                      <div>
+                        <h3 className="font-semibold mb-3">选题列表</h3>
+                        <div className="space-y-4">
+                          {submission.topics.map((topic, index) => (
+                            <div key={topic.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                              <div className="font-medium mb-2">选题 {index + 1}</div>
+                              {topic.content && (
+                                <div className="mb-2">
+                                  <span className="text-sm text-muted-foreground">内容：</span>
+                                  <span className="ml-2">{topic.content}</span>
                                 </div>
-                              </div>
-                            )}
-                            {topic.creativeIdea && (
-                              <div className="mb-2">
-                                <Label className="text-xs text-muted-foreground">创作思路</Label>
-                                <p className="text-sm mt-1">{topic.creativeIdea}</p>
-                              </div>
-                            )}
-                            {topic.creator && (
-                              <div className="mb-2">
-                                <Label className="text-xs text-muted-foreground">创作者</Label>
-                                <p className="text-sm mt-1">{topic.creator}</p>
-                              </div>
-                            )}
-                            {topic.relatedLink && (
-                              <div>
-                                <Label className="text-xs text-muted-foreground">相关链接</Label>
-                                <a 
-                                  href={topic.relatedLink} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-sm text-primary hover:underline mt-1 block"
-                                >
-                                  {topic.relatedLink}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                              )}
+                              {topic.suggestedFormat && (
+                                <div className="mb-2">
+                                  <span className="text-sm text-muted-foreground">建议形式：</span>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {topic.suggestedFormat.split(',').map((format, i) => (
+                                      <Badge key={i} variant="secondary">{format}</Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {topic.creativeIdea && (
+                                <div className="mb-2">
+                                  <span className="text-sm text-muted-foreground">创作思路：</span>
+                                  <span className="ml-2">{topic.creativeIdea}</span>
+                                </div>
+                              )}
+                              {topic.creator && (
+                                <div className="mb-2">
+                                  <span className="text-sm text-muted-foreground">创作者：</span>
+                                  <span className="ml-2">{topic.creator}</span>
+                                </div>
+                              )}
+                              {topic.relatedLink && (
+                                <div className="mb-2">
+                                  <span className="text-sm text-muted-foreground">相关链接：</span>
+                                  <a 
+                                    href={topic.relatedLink} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="ml-2 text-blue-600 hover:underline"
+                                  >
+                                    {topic.relatedLink}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 
                     {/* 项目进度列表 */}
                     {submission.projects.length > 0 && (
-                      <div className="space-y-3 border-t pt-4">
-                        <h4 className="font-semibold text-sm">项目进度</h4>
-                        {submission.projects.map((project, index) => (
-                          <div key={project.id} className="border rounded-lg p-3 bg-muted/30">
-                            <div className="flex items-start justify-between mb-2">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                项目 {index + 1}
-                              </span>
+                      <div>
+                        <h3 className="font-semibold mb-3">项目进度列表</h3>
+                        <div className="space-y-4">
+                          {submission.projects.map((project, index) => (
+                            <div key={project.id} className="border-l-4 border-green-500 pl-4 py-2">
+                              <div className="font-medium mb-2">项目 {index + 1}</div>
+                              {project.projectName && (
+                                <div className="mb-2">
+                                  <span className="text-sm text-muted-foreground">项目名：</span>
+                                  <span className="ml-2">{project.projectName}</span>
+                                </div>
+                              )}
                               {project.progress && (
-                                <Badge 
-                                  variant={
-                                    project.progress === "已结束" ? "default" :
-                                    project.progress === "已开始" ? "secondary" :
-                                    project.progress === "暂停" ? "destructive" :
-                                    "outline"
-                                  }
-                                  className="text-xs"
-                                >
-                                  {project.progress}
-                                </Badge>
+                                <div className="mb-2">
+                                  <span className="text-sm text-muted-foreground">进度：</span>
+                                  <Badge 
+                                    className="ml-2"
+                                    variant={
+                                      project.progress === '已开始' ? 'default' :
+                                      project.progress === '已结束' ? 'secondary' :
+                                      project.progress === '暂停' ? 'destructive' :
+                                      'outline'
+                                    }
+                                  >
+                                    {project.progress}
+                                  </Badge>
+                                </div>
+                              )}
+                              {project.note && (
+                                <div className="mb-2">
+                                  <span className="text-sm text-muted-foreground">备注：</span>
+                                  <span className="ml-2">{project.note}</span>
+                                </div>
                               )}
                             </div>
-                            {project.projectName && (
-                              <div className="mb-2">
-                                <Label className="text-xs text-muted-foreground">项目名</Label>
-                                <p className="text-sm mt-1">{project.projectName}</p>
-                              </div>
-                            )}
-                            {project.note && (
-                              <div>
-                                <Label className="text-xs text-muted-foreground">备注</Label>
-                                <p className="text-sm mt-1">{project.note}</p>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 其他信息 */}
+                    {(submission.longTermPlan || submission.workSuggestion || submission.riskWarning) && (
+                      <div>
+                        <h3 className="font-semibold mb-3">其他信息</h3>
+                        <div className="space-y-2">
+                          {submission.longTermPlan && (
+                            <div>
+                              <span className="text-sm text-muted-foreground">长期策划：</span>
+                              <p className="mt-1">{submission.longTermPlan}</p>
+                            </div>
+                          )}
+                          {submission.workSuggestion && (
+                            <div>
+                              <span className="text-sm text-muted-foreground">工作建议：</span>
+                              <p className="mt-1">{submission.workSuggestion}</p>
+                            </div>
+                          )}
+                          {submission.riskWarning && (
+                            <div>
+                              <span className="text-sm text-muted-foreground">风险提示：</span>
+                              <p className="mt-1">{submission.riskWarning}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </CardContent>

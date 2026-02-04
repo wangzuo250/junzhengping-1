@@ -224,14 +224,30 @@ export async function createSubmissionProjects(projects: InsertSubmissionProject
 }
 
 /**
- * 获取指定日期的所有提交（含用户信息、选题列表、项目列表）
+ * 获取指定日期范围的所有提交（含用户信息、选题列表、项目列表）
+ * @param startDate - 开始日期（YYYY-MM-DD）
+ * @param endDate - 结束日期（YYYY-MM-DD），可选，默认与startDate
  */
-export async function getSubmissionsByDate(formDate: string) {
+export async function getSubmissionsByDate(startDate: string, endDate?: string) {
   const db = await getDb();
   if (!db) return [];
 
-  const form = await getCollectionFormByDate(formDate);
-  if (!form) return [];
+  const actualEndDate = endDate || startDate;
+
+  // 获取日期范围内的所有表单
+  const forms = await db
+    .select()
+    .from(collectionForms)
+    .where(
+      and(
+        sql`${collectionForms.formDate} >= ${startDate}`,
+        sql`${collectionForms.formDate} <= ${actualEndDate}`
+      )
+    );
+
+  if (forms.length === 0) return [];
+
+  const formIds = forms.map(f => f.id);
 
   // 获取主提交记录
   const submissionList = await db
@@ -241,7 +257,7 @@ export async function getSubmissionsByDate(formDate: string) {
     })
     .from(submissions)
     .leftJoin(users, eq(submissions.userId, users.id))
-    .where(eq(submissions.collectionFormId, form.id))
+    .where(inArray(submissions.collectionFormId, formIds))
     .orderBy(desc(submissions.submittedAt));
 
   // 获取所有提交的ID

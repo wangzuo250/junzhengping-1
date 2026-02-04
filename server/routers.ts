@@ -170,16 +170,14 @@ export const appRouter = router({
         };
       }),
 
-    getByDate: protectedProcedure
+    getByDate: publicProcedure
       .input(z.object({
-        date: z.string(), // YYYY-MM-DD
+        startDate: z.string(),
+        endDate: z.string().optional(),
       }))
       .query(async ({ input }) => {
-        const form = await db.getCollectionFormByDate(input.date);
-        if (!form) return { form: null, submissions: [] };
-
-        const submissions = await db.getSubmissionsByDate(input.date);
-        return { form, submissions };
+        const submissions = await db.getSubmissionsByDate(input.startDate, input.endDate);
+        return { submissions };
       }),
 
     todayStats: protectedProcedure.query(async () => {

@@ -174,4 +174,13 @@
       max-width: 1280px; /* Standard content width */
     }
   }
+
+  /* Gradient background for forms */
+  .gradient-bg {
+    background: linear-gradient(135deg, oklch(0.98 0.01 240) 0%, oklch(0.96 0.015 260) 100%);
+  }
+
+  .dark .gradient-bg {
+    background: linear-gradient(135deg, oklch(0.18 0.01 240) 0%, oklch(0.15 0.015 260) 100%);
+  }
 }

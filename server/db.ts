@@ -241,6 +241,31 @@ export async function getSubmissionTopicById(id: number) {
 }
 
 /**
+ * 更新选题
+ */
+export async function updateSubmissionTopic(id: number, data: Partial<InsertSubmissionTopic>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(submissionTopics)
+    .set(data)
+    .where(eq(submissionTopics.id, id));
+}
+
+/**
+ * 删除选题
+ */
+export async function deleteSubmissionTopic(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .delete(submissionTopics)
+    .where(eq(submissionTopics.id, id));
+}
+
+/**
  * 批量创建项目进度子记录
  */
 export async function createSubmissionProjects(projects: InsertSubmissionProject[]) {

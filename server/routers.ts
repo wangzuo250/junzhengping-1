@@ -415,6 +415,72 @@ export const appRouter = router({
           filename: `选题统计报告_${input.monthKeys.join('_')}.xlsx`,
         };
       }),
+
+    // 获取个人入选选题
+    myTopics: protectedProcedure.query(async ({ ctx }) => {
+      const allTopics = await db.getAllSelectedTopics();
+      // 筛选包含当前用户姓名的入选选题
+      return allTopics.filter(topic => 
+        topic.submitters && topic.submitters.includes(ctx.user.name || '')
+      );
+    }),
+  }),
+
+  // 选题管理
+  submissionTopics: router({
+    // 更新选题
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          content: z.string().optional(),
+          suggestedFormat: z.string().optional(),
+        }),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // 验证选题属于当前用户
+        const topic = await db.getSubmissionTopicById(input.id);
+        if (!topic) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: '选题不存在',
+          });
+        }
+        if (topic.submitterId !== ctx.user.id) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: '无权修改此选题',
+          });
+        }
+
+        await db.updateSubmissionTopic(input.id, input.data);
+        return { success: true };
+      }),
+
+    // 删除选题
+    delete: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // 验证选题属于当前用户
+        const topic = await db.getSubmissionTopicById(input.id);
+        if (!topic) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: '选题不存在',
+          });
+        }
+        if (topic.submitterId !== ctx.user.id) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: '无权删除此选题',
+          });
+        }
+
+        await db.deleteSubmissionTopic(input.id);
+        return { success: true };
+      }),
   }),
 });
 

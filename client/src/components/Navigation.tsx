@@ -63,8 +63,8 @@ export default function Navigation() {
               const isActive = location === item.path;
               return (
                 <Link key={item.path} href={item.path}>
-                  <a
-                    className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  <span
+                    className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                       isActive
                         ? "bg-blue-50 text-blue-600"
                         : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
@@ -72,7 +72,7 @@ export default function Navigation() {
                   >
                     <Icon className="w-4 h-4" />
                     <span>{item.label}</span>
-                  </a>
+                  </span>
                 </Link>
               );
             })}
@@ -127,8 +127,8 @@ export default function Navigation() {
                 const isActive = location === item.path;
                 return (
                   <Link key={item.path} href={item.path}>
-                    <a
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
+                    <span
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium cursor-pointer ${
                         isActive
                           ? "bg-blue-50 text-blue-600"
                           : "text-gray-700 hover:bg-gray-100"
@@ -137,7 +137,7 @@ export default function Navigation() {
                     >
                       <Icon className="w-4 h-4" />
                       <span>{item.label}</span>
-                    </a>
+                    </span>
                   </Link>
                 );
               })}

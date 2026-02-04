@@ -12,6 +12,13 @@ import { registerUser, loginUser } from "./localAuth";
 export const appRouter = router({
   system: systemRouter,
   
+  // 获取服务器当前日期（东八区）
+  serverDate: publicProcedure.query(() => {
+    const date = format(new Date(), 'yyyy-MM-dd');
+    console.log('[DEBUG] serverDate called, returning:', date);
+    return { date };
+  }),
+  
   auth: router({
     // 注册
     register: publicProcedure

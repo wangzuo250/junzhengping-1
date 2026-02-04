@@ -19,6 +19,11 @@ import React, { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 
+// 生成唯一 ID 的兼容函数
+function generateId() {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
 // 建议形式分类
 const FORMAT_CATEGORIES = {
   文字类: ["钧评", "长文"],
@@ -46,6 +51,10 @@ export default function TopicForm() {
   const { user, isAuthenticated, loading } = useAuth();
   const [, setLocation] = useLocation();
   
+  // 从服务器获取当前日期
+  const { data: serverDateData } = trpc.serverDate.useQuery();
+  const today = serverDateData?.date || format(new Date(), 'yyyy-MM-dd');
+  
   // 主表单字段
   const [longTermPlan, setLongTermPlan] = useState("");
   const [workSuggestion, setWorkSuggestion] = useState("");
@@ -54,7 +63,7 @@ export default function TopicForm() {
   // 选题列表
   const [topics, setTopics] = useState<TopicItem[]>([
     { 
-      id: crypto.randomUUID(), 
+      id: generateId(), 
       content: "", 
       suggestedFormat: [], 
       creativeIdea: "",
@@ -66,7 +75,7 @@ export default function TopicForm() {
   // 项目进度列表
   const [projects, setProjects] = useState<ProjectItem[]>([
     { 
-      id: crypto.randomUUID(), 
+      id: generateId(), 
       projectName: "", 
       progress: "", 
       note: "",
@@ -103,7 +112,7 @@ export default function TopicForm() {
       setWorkSuggestion("");
       setRiskWarning("");
       setTopics([{ 
-        id: crypto.randomUUID(), 
+        id: generateId(), 
         content: "", 
         suggestedFormat: [], 
         creativeIdea: "",
@@ -111,14 +120,13 @@ export default function TopicForm() {
         relatedLink: "",
       }]);
       setProjects([{ 
-        id: crypto.randomUUID(), 
+        id: generateId(), 
         projectName: "", 
         progress: "", 
         note: "",
       }]);
       setCustomFormats({});
       // 跳转到汇总页面，带上当前日期参数
-      const today = format(new Date(), 'yyyy-MM-dd');
       setLocation(`/summary?date=${today}`);
     },
     onError: (error) => {
@@ -129,7 +137,7 @@ export default function TopicForm() {
   // 选题操作
   const addTopic = () => {
     setTopics([...topics, { 
-      id: crypto.randomUUID(), 
+      id: generateId(), 
       content: "", 
       suggestedFormat: [], 
       creativeIdea: "",
@@ -186,7 +194,7 @@ export default function TopicForm() {
   // 项目进度操作
   const addProject = () => {
     setProjects([...projects, { 
-      id: crypto.randomUUID(), 
+      id: generateId(), 
       projectName: "", 
       progress: "", 
       note: "",
@@ -264,8 +272,6 @@ export default function TopicForm() {
       </div>
     );
   }
-
-  const today = format(new Date(), 'yyyy-MM-dd');
 
   return (
     <div className="min-h-screen gradient-bg py-8">

@@ -1,0 +1,31 @@
+{
+  "query": "SELECT * FROM collection_forms ORDER BY createdAt DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2QT84xGnBKUugNF.root --database g5LX4x79UdX68RxpKYLQF9 --execute SELECT * FROM collection_forms ORDER BY createdAt DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "150001",
+      "formDate": "2026-02-03",
+      "title": "2026年02月03日 选题收集",
+      "createdBy": "120006",
+      "createdAt": "2026-02-04 07:03:23"
+    },
+    {
+      "id": "120006",
+      "formDate": "2026-02-04",
+      "title": "2026年02月04日 选题收集",
+      "createdBy": "120001",
+      "createdAt": "2026-02-04 04:09:38"
+    },
+    {
+      "id": "120004",
+      "formDate": "2026-02-02",
+      "title": "2026年02月02日 选题收集",
+      "createdBy": "120001",
+      "createdAt": "2026-02-04 03:54:18"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tformDate\ttitle\tcreatedBy\tcreatedAt\n150001\t2026-02-03\t2026年02月03日 选题收集\t120006\t2026-02-04 07:03:23\n120006\t2026-02-04\t2026年02月04日 选题收集\t120001\t2026-02-04 04:09:38\n120004\t2026-02-02\t2026年02月02日 选题收集\t120001\t2026-02-04 03:54:18\n",
+  "stderr": "",
+  "execution_time_ms": 2069
+}

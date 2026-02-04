@@ -199,11 +199,13 @@ export async function getOrCreateCollectionForm(formDate: string, createdBy: num
   const dateObj = new Date(formDate);
   const title = `${format(dateObj, 'yyyy年MM月dd日')} 选题收集`;
 
+  console.log('[DEBUG] Inserting collection_forms with formDate:', formDate, 'type:', typeof formDate);
   const result = await db.insert(collectionForms).values({
     formDate: formDate,
     title,
     createdBy,
   });
+  console.log('[DEBUG] Insert result:', result);
 
   const insertId = Number(result[0].insertId);
   return {
@@ -326,6 +328,7 @@ export async function getSubmissionsByDate(startDate: string, endDate?: string) 
   if (!db) return [];
 
   const actualEndDate = endDate || startDate;
+  console.log('[DEBUG] getSubmissionsByDate called with:', { startDate, endDate, actualEndDate });
 
   // 获取日期范围内的所有表单
   const forms = await db
@@ -338,6 +341,7 @@ export async function getSubmissionsByDate(startDate: string, endDate?: string) 
       )
     );
 
+  console.log('[DEBUG] Found forms:', forms.length, forms.map(f => ({ id: f.id, formDate: f.formDate })));
   if (forms.length === 0) return [];
 
   const formIds = forms.map(f => f.id);

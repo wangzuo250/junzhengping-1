@@ -103,12 +103,16 @@ export default function Summary() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
   
+  // 从服务器获取当前日期
+  const { data: serverDateData } = trpc.serverDate.useQuery();
+  const serverToday = serverDateData?.date || format(new Date(), 'yyyy-MM-dd');
+  
   // 从 URL 参数获取日期和 submissionId
   const urlParams = new URLSearchParams(location.split('?')[1]);
   const urlDate = urlParams.get('date');
   const highlightSubmissionId = urlParams.get('submissionId') ? parseInt(urlParams.get('submissionId')!) : null; 
-  const [startDate, setStartDate] = useState(urlDate || format(new Date(), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(urlDate || format(new Date(), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(urlDate || serverToday);
+  const [endDate, setEndDate] = useState(urlDate || serverToday);
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
   

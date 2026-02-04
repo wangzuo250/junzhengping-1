@@ -59,7 +59,6 @@ export default function AdminUsers() {
                     <TableRow>
                       <TableHead>用户ID</TableHead>
                       <TableHead>姓名</TableHead>
-                      <TableHead>邮箱</TableHead>
                       <TableHead>登录方式</TableHead>
                       <TableHead>角色</TableHead>
                       <TableHead>注册时间</TableHead>
@@ -72,7 +71,6 @@ export default function AdminUsers() {
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">{u.id}</TableCell>
                         <TableCell>{u.name || "-"}</TableCell>
-                        <TableCell>{u.email || "-"}</TableCell>
                         <TableCell>
                           <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
                             {u.loginMethod || "未知"}

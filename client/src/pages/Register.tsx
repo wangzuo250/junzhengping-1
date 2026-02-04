@@ -10,7 +10,6 @@ import { toast } from "sonner";
 export default function Register() {
   const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
@@ -50,7 +49,6 @@ export default function Register() {
 
     registerMutation.mutate({
       username,
-      email: email || undefined,
       password,
       name,
     });
@@ -91,18 +89,6 @@ export default function Register() {
                 placeholder="输入真实姓名"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={registerMutation.isPending}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">邮箱（可选）</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="输入邮箱地址"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 disabled={registerMutation.isPending}
               />
             </div>

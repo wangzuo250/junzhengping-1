@@ -23,7 +23,8 @@ export default function Navigation() {
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       toast.success("已退出登录");
-      window.location.href = "/";
+      // 刷新当前页面，不跳转到首页
+      window.location.reload();
     },
   });
 

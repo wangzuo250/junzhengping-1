@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, username, name, role FROM users WHERE username = 'admin';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2QT84xGnBKUugNF.root --database g5LX4x79UdX68RxpKYLQF9 --execute SELECT id, username, name, role FROM users WHERE username = 'admin';",
+  "rows": [
+    {
+      "id": "120006",
+      "username": "admin",
+      "name": "系统管理员",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tusername\tname\trole\n120006\tadmin\t系统管理员\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 50
+}

@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import Navigation from "@/components/Navigation";
+import PermissionDenied from "@/components/PermissionDenied";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,19 +33,7 @@ export default function AdminUsers() {
   };
 
   if (!isAuthenticated || user?.role !== "admin") {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="container mx-auto px-4 py-12">
-          <Card className="max-w-md mx-auto">
-            <CardHeader>
-              <CardTitle>权限不足</CardTitle>
-              <CardDescription>仅管理员可访问此页面</CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </div>
-    );
+    return <PermissionDenied message="仅管理员可访问用户管理页面" />;
   }
 
   return (

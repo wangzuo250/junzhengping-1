@@ -255,7 +255,8 @@ export default function Summary() {
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">{pageTitle}</h1>
         <p className="text-muted-foreground mb-8">
-          查看指定日期范围的选题提交情况，支持表格视图和数据筛选
+          查看指定日期范围的选题提交情况，支持表格视图和数据筛选。<br />
+          <span className="text-sm text-amber-600">注意：时间范围是从前一天12:00到当天12:00。例如选择2月5日，实际查询的是2月4日12:00到2月5日12:00的数据。</span>
         </p>
 
         {/* 日期选择与视图模式 */}
@@ -265,6 +266,9 @@ export default function Summary() {
               <Calendar className="w-5 h-5" />
               日期选择与视图模式
             </CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              时间范围：选择日期的前一天12:00到当天12:00
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* 日期范围选择 */}

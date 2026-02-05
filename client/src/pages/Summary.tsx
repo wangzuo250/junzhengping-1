@@ -103,16 +103,16 @@ export default function Summary() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
   
-  // 从服务器获取当前日期
-  const { data: serverDateData } = trpc.serverDate.useQuery();
-  const serverToday = serverDateData?.date || format(new Date(), 'yyyy-MM-dd');
-  
   // 从 URL 参数获取日期和 submissionId
   const urlParams = new URLSearchParams(location.split('?')[1]);
   const urlDate = urlParams.get('date');
-  const highlightSubmissionId = urlParams.get('submissionId') ? parseInt(urlParams.get('submissionId')!) : null; 
-  const [startDate, setStartDate] = useState(urlDate || serverToday);
-  const [endDate, setEndDate] = useState(urlDate || serverToday);
+  const highlightSubmissionId = urlParams.get('submissionId') ? parseInt(urlParams.get('submissionId')!) : null;
+  
+  // 使用 useState 的函数形式初始化，只在组件首次渲染时设置一次
+  const [startDate, setStartDate] = useState(() => urlDate || format(new Date(), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(() => urlDate || format(new Date(), 'yyyy-MM-dd'));
+  
+  // 不再使用 useEffect 自动更新日期，让用户手动选择
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
   
@@ -155,13 +155,8 @@ export default function Summary() {
     removeFromSelectedMutation.mutate({ submissionTopicId });
   };
 
-  // 当URL日期参数变化时，更新选择的日期
-  useEffect(() => {
-    if (urlDate) {
-      setStartDate(urlDate);
-      setEndDate(urlDate);
-    }
-  }, [urlDate]);
+  // 只在组件初始化时从URL参数设置日期（已在useState中处理）
+  // useEffect 已移除，避免日期被意外重置
 
   // 快捷查询：当周
   const handleThisWeek = () => {
@@ -438,8 +433,10 @@ export default function Summary() {
                                   {submission.submitterName}
                                 </TableCell>
                               )}
-                              <TableCell className="align-top">
-                                {topic?.content || '-'}
+                              <TableCell className="align-top max-w-xs">
+                                <div className="whitespace-normal break-words">
+                                  {topic?.content || '-'}
+                                </div>
                               </TableCell>
                               <TableCell className="align-top">
                                 {topic?.suggestedFormat ? (
@@ -450,8 +447,10 @@ export default function Summary() {
                                   </div>
                                 ) : '-'}
                               </TableCell>
-                              <TableCell className="align-top">
-                                {topic?.creativeIdea || '-'}
+                              <TableCell className="align-top max-w-xs">
+                                <div className="whitespace-normal break-words">
+                                  {topic?.creativeIdea || '-'}
+                                </div>
                               </TableCell>
                               <TableCell className="align-top">
                                 {topic?.creator || '-'}

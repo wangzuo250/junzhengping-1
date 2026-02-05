@@ -613,7 +613,14 @@ export async function getMonthlyContribution(monthKeys: string[]) {
   const userStats: Record<number, { name: string; selectedCount: number; publishedCount: number }> = {};
 
   for (const topic of topics) {
-    const submitterIds = topic.submitters.split(',').map(id => parseInt(id.trim()));
+    // 过滤空字符串和无效的 submitters
+    if (!topic.submitters || topic.submitters.trim() === '') continue;
+    
+    const submitterIds = topic.submitters
+      .split(',')
+      .map(id => parseInt(id.trim()))
+      .filter(id => !isNaN(id) && id > 0); // 过滤掉 NaN 和无效 ID
+    
     for (const userId of submitterIds) {
       if (!userStats[userId]) {
         const user = await getUserById(userId);

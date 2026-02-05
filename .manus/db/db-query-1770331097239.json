@@ -1,0 +1,66 @@
+{
+  "query": "SELECT id, content, submitters, monthKey, status, progress FROM selected_topics ORDER BY createdAt DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2QT84xGnBKUugNF.root --database g5LX4x79UdX68RxpKYLQF9 --execute SELECT id, content, submitters, monthKey, status, progress FROM selected_topics ORDER BY createdAt DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "150006",
+      "content": "测试选题：个人空间功能测试",
+      "submitters": "系统管理员",
+      "monthKey": "2026-02",
+      "status": "未发布",
+      "progress": "已完成"
+    },
+    {
+      "id": "150004",
+      "content": "撒打发第三方",
+      "submitters": "王祚",
+      "monthKey": "2026-02",
+      "status": "已发布",
+      "progress": "进行中"
+    },
+    {
+      "id": "120001",
+      "content": "测试管理员直接创建的入选选题",
+      "submitters": "管理员",
+      "monthKey": "2026-02",
+      "status": "否决",
+      "progress": "未开始"
+    },
+    {
+      "id": "4",
+      "content": "测试权限选题",
+      "submitters": "Test User",
+      "monthKey": "2026-02",
+      "status": "未发布",
+      "progress": "已暂停"
+    },
+    {
+      "id": "2",
+      "content": "重复测试选题",
+      "submitters": "User A, User B",
+      "monthKey": "2026-02",
+      "status": "未发布",
+      "progress": "进行中"
+    },
+    {
+      "id": "3",
+      "content": "待更新选题",
+      "submitters": "Test User",
+      "monthKey": "2026-02",
+      "status": "已发布",
+      "progress": "进行中"
+    },
+    {
+      "id": "1",
+      "content": "测试入选选题",
+      "submitters": "Test User",
+      "monthKey": "2026-02",
+      "status": "未发布",
+      "progress": "未开始"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcontent\tsubmitters\tmonthKey\tstatus\tprogress\n150006\t测试选题：个人空间功能测试\t系统管理员\t2026-02\t未发布\t已完成\n150004\t撒打发第三方\t王祚\t2026-02\t已发布\t进行中\n120001\t测试管理员直接创建的入选选题\t管理员\t2026-02\t否决\t未开始\n4\t测试权限选题\tTest User\t2026-02\t未发布\t已暂停\n2\t重复测试选题\tUser A, User B\t2026-02\t未发布\t进行中\n3\t待更新选题\tTest User\t2026-02\t已发布\t进行中\n1\t测试入选选题\tTest User\t2026-02\t未发布\t未开始\n",
+  "stderr": "",
+  "execution_time_ms": 1517
+}

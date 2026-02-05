@@ -1,0 +1,31 @@
+{
+  "query": "SELECT COUNT(*) as total FROM selected_topics;\nSELECT * FROM selected_topics LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2QT84xGnBKUugNF.root --database g5LX4x79UdX68RxpKYLQF9 --execute SELECT COUNT(*) as total FROM selected_topics;\nSELECT * FROM selected_topics LIMIT 5;",
+  "rows": [
+    {
+      "total": "7"
+    },
+    {
+      "total": "id\tcontent\tsuggestion\tsubmitters\tleaderComment\tcreators\tprogress\tstatus\tremark\tselectedDate\tmonthKey\tsourceSubmissionId\tcreatedBy\tcreatedAt\tupdatedAt"
+    },
+    {
+      "total": "1\t测试入选选题\t钧评\tTest User\tNULL\tNULL\t未开始\t未发布\tNULL\t2026-02-03\t2026-02\tNULL\t1\t2026-02-04 00:58:41\t2026-02-04 00:58:41"
+    },
+    {
+      "total": "2\t重复测试选题\t钧评\tUser A, User B\t\t\t进行中\t未发布\t\t2026-02-03\t2026-02\tNULL\t1\t2026-02-04 00:58:41\t2026-02-04 06:37:13"
+    },
+    {
+      "total": "3\t待更新选题\t钧评\tTest User\t很好的选题\tNULL\t进行中\t已发布\tNULL\t2026-02-03\t2026-02\tNULL\t1\t2026-02-04 00:58:41\t2026-02-04 02:39:32"
+    },
+    {
+      "total": "4\t测试权限选题\t钧评\tTest User\t\t\t已暂停\t未发布\t\t2026-02-03\t2026-02\tNULL\t1\t2026-02-04 00:58:41\t2026-02-04 06:37:03"
+    },
+    {
+      "total": "120001\t测试管理员直接创建的入选选题\t短视频\t管理员\t\t\t未开始\t否决\t\t2026-02-02\t2026-02\tNULL\t120006\t2026-02-04 04:38:49\t2026-02-04 06:36:53"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\n7\nid\tcontent\tsuggestion\tsubmitters\tleaderComment\tcreators\tprogress\tstatus\tremark\tselectedDate\tmonthKey\tsourceSubmissionId\tcreatedBy\tcreatedAt\tupdatedAt\n1\t测试入选选题\t钧评\tTest User\tNULL\tNULL\t未开始\t未发布\tNULL\t2026-02-03\t2026-02\tNULL\t1\t2026-02-04 00:58:41\t2026-02-04 00:58:41\n2\t重复测试选题\t钧评\tUser A, User B\t\t\t进行中\t未发布\t\t2026-02-03\t2026-02\tNULL\t1\t2026-02-04 00:58:41\t2026-02-04 06:37:13\n3\t待更新选题\t钧评\tTest User\t很好的选题\tNULL\t进行中\t已发布\tNULL\t2026-02-03\t2026-02\tNULL\t1\t2026-02-04 00:58:41\t2026-02-04 02:39:32\n4\t测试权限选题\t钧评\tTest User\t\t\t已暂停\t未发布\t\t2026-02-03\t2026-02\tNULL\t1\t2026-02-04 00:58:41\t2026-02-04 06:37:03\n120001\t测试管理员直接创建的入选选题\t短视频\t管理员\t\t\t未开始\t否决\t\t2026-02-02\t2026-02\tNULL\t120006\t2026-02-04 04:38:49\t2026-02-04 06:36:53\n",
+  "stderr": "",
+  "execution_time_ms": 1765
+}

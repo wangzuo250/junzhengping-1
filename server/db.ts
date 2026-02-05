@@ -620,7 +620,7 @@ export async function getMonthlyContribution(monthKeys: string[]) {
     .from(selectedTopics)
     .where(inArray(selectedTopics.monthKey, monthKeys));
 
-  const userStats: Record<number, { name: string; selectedCount: number; publishedCount: number }> = {};
+  const userStats: Record<number, { name: string; selectedCount: number; publishedCount: number; rejectedCount: number }> = {};
 
   for (const topic of topics) {
     // 过滤空字符串和无效的 submitters
@@ -638,11 +638,15 @@ export async function getMonthlyContribution(monthKeys: string[]) {
           name: user?.name || user?.username || "未知用户",
           selectedCount: 0,
           publishedCount: 0,
+          rejectedCount: 0,
         };
       }
       userStats[userId].selectedCount++;
       if (topic.status === "已发布") {
         userStats[userId].publishedCount++;
+      }
+      if (topic.status === "否决") {
+        userStats[userId].rejectedCount++;
       }
     }
   }
@@ -651,8 +655,8 @@ export async function getMonthlyContribution(monthKeys: string[]) {
     userId: parseInt(userId),
     ...stats,
     publishRate: stats.selectedCount > 0 
-      ? ((stats.publishedCount / stats.selectedCount) * 100).toFixed(1) + '%'
-      : '0%',
+      ? ((stats.publishedCount / stats.selectedCount) * 100).toFixed(1)
+      : '0',
   })).sort((a, b) => b.selectedCount - a.selectedCount);
 }
 

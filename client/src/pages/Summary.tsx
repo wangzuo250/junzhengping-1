@@ -17,6 +17,7 @@ import { trpc } from "@/lib/trpc";
 import { Calendar, Table as TableIcon, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { formatBJTime, formatBJDateChinese } from "@/lib/timeUtils";
 
 // 入选状态单元格组件
 function SelectedStatusCell({ topicId }: { topicId: number }) {
@@ -315,12 +316,7 @@ export default function Summary() {
                       <div className="flex items-center gap-3">
                         <Calendar className="h-5 w-5 text-blue-600" />
                         <CardTitle className="text-xl">
-                          {new Date(date + 'T00:00:00').toLocaleDateString('zh-CN', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            weekday: 'long'
-                          })}
+                          {formatBJDateChinese(new Date(date + 'T00:00:00'))}
                         </CardTitle>
                         <Badge variant="secondary">
                           {new Set(dateSubmissions.map((s: any) => s.userId)).size} 人提交
@@ -357,10 +353,7 @@ export default function Summary() {
                                 <div className="flex items-center justify-between">
                                   <CardTitle className="text-lg">{submission.userName}</CardTitle>
                                   <span className="text-sm text-gray-500">
-                                    {new Date(submission.submittedAt).toLocaleTimeString('zh-CN', {
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
+                                    {formatBJTime(submission.submittedAt)}
                                   </span>
                                 </div>
                               </CardHeader>

@@ -8,13 +8,14 @@ import * as db from "./db";
 import { format } from "date-fns";
 import { generateExcelReport } from "./exportService";
 import { registerUser, loginUser } from "./localAuth";
+import { getBJDate } from "./timeUtils";
 
 export const appRouter = router({
   system: systemRouter,
   
-  // 获取服务器当前日期（东八区）
+  // 获取服务器当前日期（北京时间）
   serverDate: publicProcedure.query(() => {
-    const date = format(new Date(), 'yyyy-MM-dd');
+    const date = getBJDate();
     console.log('[DEBUG] serverDate called, returning:', date);
     return { date };
   }),
@@ -228,7 +229,8 @@ export const appRouter = router({
         })).optional().default([]),
       }))
       .mutation(async ({ input, ctx }) => {
-        const today = format(new Date(), 'yyyy-MM-dd');
+        // 使用北京时间获取今日日期
+        const today = getBJDate();
         const form = await db.getOrCreateCollectionForm(today, ctx.user.id);
 
         // 创建主提交记录

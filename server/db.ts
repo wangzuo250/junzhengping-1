@@ -26,6 +26,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { format } from 'date-fns';
+import { formatBJDate } from './timeUtils';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -365,7 +366,8 @@ export async function getAllSubmissionsGroupedByDate() {
   const grouped: Record<string, any[]> = {};
   
   for (const item of submissionList) {
-    const dateKey = format(item.submission.submittedAt, 'yyyy-MM-dd');
+    // 使用北京时间进行日期分组
+    const dateKey = formatBJDate(item.submission.submittedAt);
     
     if (!grouped[dateKey]) {
       grouped[dateKey] = [];

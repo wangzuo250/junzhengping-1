@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { format, isToday } from "date-fns";
+import { formatBJTime, formatBJDate, formatBJDateChinese, getBJDate } from "@/lib/timeUtils";
 import { Calendar, Clock, Edit2, FileText, Plus, Star, TrendingUp, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -46,7 +47,7 @@ function StatusHistoryTimeline({ selectedTopicId }: { selectedTopicId: number })
           <div className="flex-1 pb-3">
             <div className="flex items-center gap-2 text-sm">
               <Clock className="w-3 h-3 text-gray-400" />
-              <span className="text-gray-500">{format(new Date(item.changedAt), 'yyyy-MM-dd HH:mm')}</span>
+              <span className="text-gray-500">{formatBJTime(item.changedAt)}</span>
             </div>
             <div className="mt-1 text-sm">
               <span className="font-medium">
@@ -250,9 +251,9 @@ export default function Personal() {
 
   // 筛选本日选题
   const todayTopics = history?.filter((item: any) => 
-    item.topics.some((topic: any) => isToday(new Date(topic.createdAt)))
+    item.topics.some((topic: any) => formatBJDate(topic.createdAt) === formatBJDate(Date.now()))
   ).flatMap((item: any) => 
-    item.topics.filter((topic: any) => isToday(new Date(topic.createdAt)))
+    item.topics.filter((topic: any) => formatBJDate(topic.createdAt) === formatBJDate(Date.now()))
       .map((topic: any) => ({
         ...topic,
         submittedAt: item.submittedAt,
@@ -376,7 +377,7 @@ export default function Personal() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-sm text-gray-500">
-                              {format(new Date(topic.createdAt), 'HH:mm')}
+                              {formatBJTime(topic.createdAt).split(' ')[1]}
                             </span>
                             {topic.suggestedFormat && (
                               <div className="flex gap-1 flex-wrap">
@@ -514,7 +515,7 @@ export default function Personal() {
                         </span>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {format(new Date(topic.createdAt), 'yyyy-MM-dd')}
+                        {formatBJDate(topic.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -572,7 +573,7 @@ export default function Personal() {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <h3 className="font-medium text-gray-900">
-                          {format(new Date(item.submittedAt), 'yyyy年MM月dd日')} 提交
+                          {formatBJDateChinese(item.submittedAt).split(' ')[0]} 提交
                         </h3>
                         <p className="text-sm text-gray-500">
                           共 {item.topics.length} 条选题
@@ -622,7 +623,7 @@ export default function Personal() {
                                   </div>
                                 )}
                               </div>
-                              {!isToday(new Date(topic.createdAt)) && (
+                              {formatBJDate(topic.createdAt) !== formatBJDate(Date.now()) && (
                                 <Button
                                   variant="outline"
                                   size="sm"

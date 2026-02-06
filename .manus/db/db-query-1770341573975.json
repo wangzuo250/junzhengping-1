@@ -1,0 +1,37 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2QT84xGnBKUugNF.root --database g5LX4x79UdX68RxpKYLQF9 --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_g5LX4x79UdX68RxpKYLQF9": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_g5LX4x79UdX68RxpKYLQF9": "collection_forms"
+    },
+    {
+      "Tables_in_g5LX4x79UdX68RxpKYLQF9": "selected_topics"
+    },
+    {
+      "Tables_in_g5LX4x79UdX68RxpKYLQF9": "submission_projects"
+    },
+    {
+      "Tables_in_g5LX4x79UdX68RxpKYLQF9": "submission_topics"
+    },
+    {
+      "Tables_in_g5LX4x79UdX68RxpKYLQF9": "submissions"
+    },
+    {
+      "Tables_in_g5LX4x79UdX68RxpKYLQF9": "system_logs"
+    },
+    {
+      "Tables_in_g5LX4x79UdX68RxpKYLQF9": "topic_status_history"
+    },
+    {
+      "Tables_in_g5LX4x79UdX68RxpKYLQF9": "users"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_g5LX4x79UdX68RxpKYLQF9\n__drizzle_migrations\ncollection_forms\nselected_topics\nsubmission_projects\nsubmission_topics\nsubmissions\nsystem_logs\ntopic_status_history\nusers\n",
+  "stderr": "",
+  "execution_time_ms": 1552
+}

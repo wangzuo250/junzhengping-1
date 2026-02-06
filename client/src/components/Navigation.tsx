@@ -20,11 +20,26 @@ export default function Navigation() {
   const { user, isAuthenticated, loading } = useAuth();
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const utils = trpc.useUtils();
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
-      toast.success("已退出登录");
-      // 跳转到首页，避免刷新后自动跳转到 Manus 登录页
-      window.location.href = "/";
+      // 清除所有tRPC缓存
+      utils.invalidate();
+      // 清除localStorage
+      localStorage.clear();
+      // 延迟跳转，确保缓存清除完成
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 100);
+    },
+    onError: (error) => {
+      console.error("Logout error:", error);
+      // 即使错误也清除缓存并跳转
+      utils.invalidate();
+      localStorage.clear();
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 100);
     },
   });
 

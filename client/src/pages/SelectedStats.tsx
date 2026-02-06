@@ -24,8 +24,14 @@ export default function SelectedStats() {
     }).filter((m): m is string => m !== null) || []
   )).sort((a, b) => b.localeCompare(a));
   
-  const { data: progressStats, isLoading: progressLoading } = trpc.selectedTopics.progressStats.useQuery();
-  const { data: statusStats, isLoading: statusLoading } = trpc.selectedTopics.statusStats.useQuery();
+  const { data: progressStats, isLoading: progressLoading } = trpc.selectedTopics.progressStats.useQuery(
+    { month: selectedMonth || undefined },
+    { enabled: true }
+  );
+  const { data: statusStats, isLoading: statusLoading } = trpc.selectedTopics.statusStats.useQuery(
+    { month: selectedMonth || undefined },
+    { enabled: true }
+  );
   const { data: contribution } = trpc.selectedTopics.monthlyContribution.useQuery(
     { month: selectedMonth },
     { enabled: selectedMonth !== "" }

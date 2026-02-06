@@ -564,17 +564,27 @@ export async function deleteSelectedTopic(id: number) {
   await db.delete(selectedTopics).where(eq(selectedTopics.id, id));
 }
 
-export async function getProgressStats() {
+export async function getProgressStats(month?: string) {
   const db = await getDb();
   if (!db) return { 未开始: 0, 进行中: 0, 已完成: 0, 已暂停: 0 };
 
-  const result = await db
-    .select({
-      progress: selectedTopics.progress,
-      count: count(),
-    })
-    .from(selectedTopics)
-    .groupBy(selectedTopics.progress);
+  // 根据是否有月份参数构建不同的查询
+  const result = month
+    ? await db
+        .select({
+          progress: selectedTopics.progress,
+          count: count(),
+        })
+        .from(selectedTopics)
+        .where(sql`DATE_FORMAT(${selectedTopics.selectedDate}, '%Y-%m') = ${month}`)
+        .groupBy(selectedTopics.progress)
+    : await db
+        .select({
+          progress: selectedTopics.progress,
+          count: count(),
+        })
+        .from(selectedTopics)
+        .groupBy(selectedTopics.progress);
 
   const stats: Record<string, number> = { 未开始: 0, 进行中: 0, 已完成: 0, 已暂停: 0 };
   result.forEach(row => {
@@ -584,17 +594,27 @@ export async function getProgressStats() {
   return stats;
 }
 
-export async function getStatusStats() {
+export async function getStatusStats(month?: string) {
   const db = await getDb();
   if (!db) return { 未发布: 0, 已发布: 0, 否决: 0 };
 
-  const result = await db
-    .select({
-      status: selectedTopics.status,
-      count: count(),
-    })
-    .from(selectedTopics)
-    .groupBy(selectedTopics.status);
+  // 根据是否有月份参数构建不同的查询
+  const result = month
+    ? await db
+        .select({
+          status: selectedTopics.status,
+          count: count(),
+        })
+        .from(selectedTopics)
+        .where(sql`DATE_FORMAT(${selectedTopics.selectedDate}, '%Y-%m') = ${month}`)
+        .groupBy(selectedTopics.status)
+    : await db
+        .select({
+          status: selectedTopics.status,
+          count: count(),
+        })
+        .from(selectedTopics)
+        .groupBy(selectedTopics.status);
 
   const stats: Record<string, number> = { 未发布: 0, 已发布: 0, 否决: 0 };
   result.forEach(row => {

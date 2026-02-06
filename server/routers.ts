@@ -565,13 +565,21 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    progressStats: protectedProcedure.query(async () => {
-      return await db.getProgressStats();
-    }),
+    progressStats: protectedProcedure
+      .input(z.object({
+        month: z.string().optional(), // 格式：YYYY-MM，可选
+      }))
+      .query(async ({ input }) => {
+        return await db.getProgressStats(input.month);
+      }),
 
-    statusStats: protectedProcedure.query(async () => {
-      return await db.getStatusStats();
-    }),
+    statusStats: protectedProcedure
+      .input(z.object({
+        month: z.string().optional(), // 格式：YYYY-MM，可选
+      }))
+      .query(async ({ input }) => {
+        return await db.getStatusStats(input.month);
+      }),
 
     monthlyContribution: protectedProcedure
       .input(z.object({
@@ -594,8 +602,8 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const contribution = await db.getMonthlyContribution(input.month);
-        const progressStats = await db.getProgressStats();
-        const statusStats = await db.getStatusStats();
+        const progressStats = await db.getProgressStats(input.month);
+        const statusStats = await db.getStatusStats(input.month);
 
         // 普通用户只导出前5名
         const exportData = ctx.user.role === "admin" 

@@ -611,14 +611,26 @@ export async function getStatusStats() {
   return stats;
 }
 
-export async function getMonthlyContribution(monthKeys: string[]) {
+export async function getMonthlyContribution(month: string) {
   const db = await getDb();
   if (!db) return [];
 
+  // 使用 sql 函数构建查询条件，根据 selectedDate 字段筛选指定月份
   const topics = await db
     .select()
     .from(selectedTopics)
-    .where(inArray(selectedTopics.monthKey, monthKeys));
+    .where(sql`DATE_FORMAT(${selectedTopics.selectedDate}, '%Y-%m') = ${month}`);
+
+  console.log(`[DEBUG] Month: ${month}, Found ${topics.length} topics`);
+
+  // 获取所有用户，建立用户名到ID的映射
+  const allUsers = await getAllUsers();
+  const userNameMap = new Map<string, { id: number; name: string }>();
+  for (const user of allUsers) {
+    // 同时映射 name 和 username
+    if (user.name) userNameMap.set(user.name, { id: user.id, name: user.name });
+    if (user.username) userNameMap.set(user.username, { id: user.id, name: user.name || user.username });
+  }
 
   const userStats: Record<number, { name: string; selectedCount: number; publishedCount: number; rejectedCount: number }> = {};
 
@@ -626,16 +638,25 @@ export async function getMonthlyContribution(monthKeys: string[]) {
     // 过滤空字符串和无效的 submitters
     if (!topic.submitters || topic.submitters.trim() === '') continue;
     
-    const submitterIds = topic.submitters
+    // submitters 是用户名列表，逗号分隔
+    const submitterNames = topic.submitters
       .split(',')
-      .map(id => parseInt(id.trim()))
-      .filter(id => !isNaN(id) && id > 0); // 过滤掉 NaN 和无效 ID
+      .map(name => name.trim())
+      .filter(name => name.length > 0);
     
-    for (const userId of submitterIds) {
+    console.log(`[DEBUG] Topic ${topic.id}: submitters=${topic.submitters}, names=${submitterNames}`);
+    
+    for (const userName of submitterNames) {
+      const userInfo = userNameMap.get(userName);
+      if (!userInfo) {
+        console.log(`[DEBUG] User not found: ${userName}`);
+        continue;
+      }
+      
+      const userId = userInfo.id;
       if (!userStats[userId]) {
-        const user = await getUserById(userId);
         userStats[userId] = {
-          name: user?.name || user?.username || "未知用户",
+          name: userInfo.name,
           selectedCount: 0,
           publishedCount: 0,
           rejectedCount: 0,
@@ -651,13 +672,16 @@ export async function getMonthlyContribution(monthKeys: string[]) {
     }
   }
 
-  return Object.entries(userStats).map(([userId, stats]) => ({
+  const result = Object.entries(userStats).map(([userId, stats]) => ({
     userId: parseInt(userId),
     ...stats,
     publishRate: stats.selectedCount > 0 
       ? ((stats.publishedCount / stats.selectedCount) * 100).toFixed(1)
       : '0',
   })).sort((a, b) => b.selectedCount - a.selectedCount);
+
+  console.log(`[DEBUG] Final result: ${JSON.stringify(result)}`);
+  return result;
 }
 
 // ============ 系统日志相关 ============

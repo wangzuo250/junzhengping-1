@@ -1,34 +1,35 @@
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Download, TrendingUp, Clock, CheckCircle2, Pause, XCircle, Eye, EyeOff } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Navigation from "@/components/Navigation";
 import PermissionDenied from "@/components/PermissionDenied";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { trpc } from "@/lib/trpc";
-import { Download, TrendingUp, CheckCircle2, XCircle, Clock, Pause } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 
 export default function SelectedStats() {
   const { user, isAuthenticated } = useAuth();
-  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string>(""); // 改为单个月份选择
 
   const { data: topics, isLoading: topicsLoading } = trpc.selectedTopics.listAll.useQuery();
-  const monthKeys = Array.from(new Set(topics?.map((t: any) => t.monthKey) || [])).sort((a, b) => b.localeCompare(a));
+  // 从 selectedDate 字段提取月份（YYYY-MM格式）
+  const monthKeys = Array.from(new Set(
+    topics?.map((t: any) => {
+      if (!t.selectedDate) return null;
+      const date = new Date(t.selectedDate);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }).filter((m): m is string => m !== null) || []
+  )).sort((a, b) => b.localeCompare(a));
+  
   const { data: progressStats, isLoading: progressLoading } = trpc.selectedTopics.progressStats.useQuery();
   const { data: statusStats, isLoading: statusLoading } = trpc.selectedTopics.statusStats.useQuery();
   const { data: contribution } = trpc.selectedTopics.monthlyContribution.useQuery(
-    { monthKeys: selectedMonths },
-    { enabled: selectedMonths.length > 0 }
+    { month: selectedMonth },
+    { enabled: selectedMonth !== "" }
   );
-
-  const toggleMonth = (month: string) => {
-    setSelectedMonths(prev =>
-      prev.includes(month) ? prev.filter(m => m !== month) : [...prev, month]
-    );
-  };
 
   const exportMutation = trpc.selectedTopics.exportReport.useMutation({
     onSuccess: (result: any) => {
@@ -58,11 +59,11 @@ export default function SelectedStats() {
   });
 
   const handleExport = () => {
-    if (selectedMonths.length === 0) {
+    if (!selectedMonth) {
       toast.error("请先选择要导出的月份");
       return;
     }
-    exportMutation.mutate({ monthKeys: selectedMonths });
+    exportMutation.mutate({ month: selectedMonth });
   };
 
   if (!isAuthenticated || user?.role !== "admin") {
@@ -78,137 +79,108 @@ export default function SelectedStats() {
           <Card className="max-w-md mx-auto">
             <CardHeader>
               <CardTitle>加载中...</CardTitle>
-              <CardDescription>正在获取统计数据</CardDescription>
             </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            </CardContent>
           </Card>
         </div>
       </div>
     );
   }
 
-  // 后端返回的是对象，不是数组
-  const statusStatsObj = statusStats || {};
-  const progressStatsObj = progressStats || {};
-
-  const totalTopics = topics?.length || 0;
-  const publishedCount = (statusStatsObj as any)['已发布'] || 0;
-  const completedCount = (progressStatsObj as any)['已完成'] || 0;
-  const notPublishedCount = (statusStatsObj as any)['未发布'] || 0;
-  const rejectedCount = (statusStatsObj as any)['否决'] || 0;
-  const inProgressCount = (progressStatsObj as any)['进行中'] || 0;
-  const pausedCount = (progressStatsObj as any)['已暂停'] || 0;
-  const notStartedCount = (progressStatsObj as any)['未开始'] || 0;
-  
-  const completionRate = totalTopics > 0
-    ? ((completedCount / totalTopics) * 100).toFixed(1)
-    : "0.0";
-  
-  const publishRate = totalTopics > 0
-    ? ((publishedCount / totalTopics) * 100).toFixed(1)
-    : "0.0";
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-7xl mx-auto space-y-8">
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold text-gray-900">统计汇总</h1>
-            <Button onClick={handleExport} disabled={exportMutation.isPending || selectedMonths.length === 0}>
+            <Button onClick={handleExport} disabled={exportMutation.isPending || !selectedMonth}>
               <Download className="w-4 h-4 mr-2" />
               {exportMutation.isPending ? "导出中..." : "导出Excel"}
             </Button>
           </div>
 
           {/* 项目进度统计 */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">项目进度统计</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">未开始</CardTitle>
-                  <Clock className="h-4 w-4 text-gray-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{notStartedCount}</div>
-                </CardContent>
-              </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                项目进度统计
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <Clock className="w-5 h-5 text-gray-500 mr-2" />
+                    <span className="text-sm text-gray-600">未开始</span>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900">{progressStats?.未开始 || 0}</div>
+                </div>
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <TrendingUp className="w-5 h-5 text-blue-600 mr-2" />
+                    <span className="text-sm text-blue-600">进行中</span>
+                  </div>
+                  <div className="text-3xl font-bold text-blue-600">{progressStats?.进行中 || 0}</div>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
+                    <span className="text-sm text-green-600">已完成</span>
+                  </div>
+                  <div className="text-3xl font-bold text-green-600">{progressStats?.已完成 || 0}</div>
+                </div>
+                <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <Pause className="w-5 h-5 text-orange-600 mr-2" />
+                    <span className="text-sm text-orange-600">已暂停</span>
+                  </div>
+                  <div className="text-3xl font-bold text-orange-600">{progressStats?.已暂停 || 0}</div>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">进行中</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-yellow-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{inProgressCount}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">已完成</CardTitle>
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{completedCount}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">已暂停</CardTitle>
-                  <Pause className="h-4 w-4 text-red-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{pausedCount}</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">未发布</CardTitle>
-                  <Clock className="h-4 w-4 text-gray-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{notPublishedCount}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">已发布</CardTitle>
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{publishedCount}</div>
-                  <p className="text-xs text-muted-foreground">
-                    发布率 {publishRate}%
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">否决</CardTitle>
-                  <XCircle className="h-4 w-4 text-red-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{rejectedCount}</div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mt-6">
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <EyeOff className="w-5 h-5 text-gray-500 mr-2" />
+                    <span className="text-sm text-gray-600">未发布</span>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900">{statusStats?.未发布 || 0}</div>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <Eye className="w-5 h-5 text-green-600 mr-2" />
+                    <span className="text-sm text-green-600">已发布</span>
+                  </div>
+                  <div className="text-3xl font-bold text-green-600">{statusStats?.已发布 || 0}</div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    发布率 {statusStats?.publishRate || "0%"}
+                  </div>
+                </div>
+                <div className="text-center p-4 bg-red-50 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <XCircle className="w-5 h-5 text-red-600 mr-2" />
+                    <span className="text-sm text-red-600">否决</span>
+                  </div>
+                  <div className="text-3xl font-bold text-red-600">{statusStats?.否决 || 0}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* 月度贡献统计 */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">月度贡献统计</h2>
-            
-            <Card className="mb-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>月度贡献统计</CardTitle>
+            </CardHeader>
+            <Card>
               <CardHeader>
-                <CardTitle className="text-base">选择统计月份</CardTitle>
+                <CardTitle className="text-lg">选择统计月份</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-4">
@@ -216,77 +188,63 @@ export default function SelectedStats() {
                     <div key={month} className="flex items-center space-x-2">
                       <Checkbox
                         id={`month-${month}`}
-                        checked={selectedMonths.includes(month)}
-                        onCheckedChange={() => toggleMonth(month)}
+                        checked={selectedMonth === month}
+                        onCheckedChange={() => setSelectedMonth(month)}
                       />
-                      <Label htmlFor={`month-${month}`} className="cursor-pointer">
-                        {month}
-                      </Label>
+                      <label htmlFor={`month-${month}`}>{month}</label>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
 
-            {selectedMonths.length === 0 ? (
+            {!selectedMonth ? (
               <Card>
                 <CardContent className="py-12 text-center text-gray-500">
                   请选择要统计的月份
                 </CardContent>
               </Card>
-            ) : contribution ? (
+            ) : (
               <Card>
-                <CardContent className="pt-6">
-                  {user?.role !== 'admin' && contribution && contribution.length >= 5 && (                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
-                      普通用户仅显示前5名，管理员可查看完整排行榜
-                    </div>
-                  )}
-                  
+                <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-16">排名</TableHead>
+                        <TableHead className="text-center">排名</TableHead>
                         <TableHead>姓名</TableHead>
-                        <TableHead className="text-right">入选数量</TableHead>
-                        <TableHead className="text-right">发布数量</TableHead>
-                        <TableHead className="text-right">否决数量</TableHead>
-                        <TableHead className="text-right">发布率</TableHead>
+                        <TableHead className="text-center">入选数量</TableHead>
+                        <TableHead className="text-center">发布数量</TableHead>
+                        <TableHead className="text-center">否决数量</TableHead>
+                        <TableHead className="text-center">发布率</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {contribution.length === 0 ? (
+                      {contribution && contribution.length > 0 ? (
+                        contribution.map((item: any, index: number) => (
+                          <TableRow key={item.userId}>
+                            <TableCell className="text-center font-medium">{index + 1}</TableCell>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell className="text-center">{item.selectedCount}</TableCell>
+                            <TableCell className="text-center">{item.publishedCount}</TableCell>
+                            <TableCell className="text-center">{item.rejectedCount}</TableCell>
+                            <TableCell className="text-center">{item.publishRate}%</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-gray-500">
+                          <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                             暂无数据
                           </TableCell>
                         </TableRow>
-                      ) : (
-                        contribution?.map((item: any, index: number) => (
-                          <TableRow key={item.name}>
-                            <TableCell className="font-medium">#{index + 1}</TableCell>
-                            <TableCell>{item.name}</TableCell>
-                            <TableCell className="text-right">{item.selectedCount}</TableCell>
-                            <TableCell className="text-right">{item.publishedCount}</TableCell>
-                            <TableCell className="text-right">{item.rejectedCount}</TableCell>
-                            <TableCell className="text-right">{item.publishRate}%</TableCell>
-                          </TableRow>
-                        ))
                       )}
                     </TableBody>
                   </Table>
                 </CardContent>
               </Card>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <p className="mt-4 text-gray-600">加载中...</p>
-                </CardContent>
-              </Card>
             )}
-          </div>
+          </Card>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

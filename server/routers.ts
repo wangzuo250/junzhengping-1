@@ -577,10 +577,10 @@ export const appRouter = router({
 
     monthlyContribution: protectedProcedure
       .input(z.object({
-        monthKeys: z.array(z.string()), // ["2026-01", "2026-02"]
+        month: z.string(), // 格式：YYYY-MM
       }))
       .query(async ({ input, ctx }) => {
-        const allData = await db.getMonthlyContribution(input.monthKeys);
+        const allData = await db.getMonthlyContribution(input.month);
         
         // 普通用户只返回前5名
         if (ctx.user.role !== "admin") {
@@ -592,10 +592,10 @@ export const appRouter = router({
 
     exportReport: protectedProcedure
       .input(z.object({
-        monthKeys: z.array(z.string()),
+        month: z.string(), // 格式：YYYY-MM
       }))
       .mutation(async ({ input, ctx }) => {
-        const contribution = await db.getMonthlyContribution(input.monthKeys);
+        const contribution = await db.getMonthlyContribution(input.month);
         const progressStats = await db.getProgressStats();
         const statusStats = await db.getStatusStats();
 
@@ -608,13 +608,13 @@ export const appRouter = router({
           contribution: exportData,
           progressStats,
           statusStats,
-          monthKeys: input.monthKeys,
+          monthKeys: [input.month], // 传递数组格式
         });
 
         return {
           success: true,
           data: buffer.toString('base64'),
-          filename: `选题统计报告_${input.monthKeys.join('_')}.xlsx`,
+          filename: `选题统计报告_${input.month}.xlsx`,
         };
       }),
 

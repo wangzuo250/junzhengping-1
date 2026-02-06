@@ -319,34 +319,18 @@ export async function createSubmissionProjects(projects: InsertSubmissionProject
 }
 
 /**
- * 获取指定日期范围的所有提交（含用户信息、选题列表、项目列表）
- * 注意：时间范围是从 startDate 12:00 到 endDate 12:00
- * 例如：查询2026-02-05，实际查询的是 2026-02-04 12:00:00 到 2026-02-05 12:00:00
- * @param startDate - 开始日期（YYYY-MM-DD）
- * @param endDate - 结束日期（YYYY-MM-DD），可选，默认与startDate相同
+ * 获取所有历史提交，按日期分组（含用户信息、选题列表、项目列表）
+ * 返回格式：{ "2026-02-05": [...], "2026-02-04": [...] }
+ * 每个日期内的选题按提交时间倒序排列
+ * 日期键按倒序排列（最新日期在前）
  */
-export async function getSubmissionsByDate(startDate: string, endDate?: string) {
+export async function getAllSubmissionsGroupedByDate() {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) return {};
 
-  const actualEndDate = endDate || startDate;
-  console.log('[DEBUG] getSubmissionsByDate called with:', { startDate, endDate, actualEndDate });
+  console.log('[DEBUG] getAllSubmissionsGroupedByDate called');
 
-  // 计算时间范围：startDate的前一天12:00 到 endDate当天12:00
-  // 例如：查询2026-02-05，实际查询 2026-02-04 12:00:00 到 2026-02-05 12:00:00
-  const startDateTime = new Date(startDate);
-  startDateTime.setDate(startDateTime.getDate() - 1); // 前一天
-  startDateTime.setHours(12, 0, 0, 0); // 12:00:00
-
-  const endDateTime = new Date(actualEndDate);
-  endDateTime.setHours(12, 0, 0, 0); // 12:00:00
-
-  console.log('[DEBUG] Query time range:', {
-    start: startDateTime.toISOString(),
-    end: endDateTime.toISOString()
-  });
-
-  // 直接查询 submissions 表，不依赖 collection_forms
+  // 查询所有提交，按提交时间倒序
   const submissionList = await db
     .select({
       submission: submissions,
@@ -354,21 +338,15 @@ export async function getSubmissionsByDate(startDate: string, endDate?: string) 
     })
     .from(submissions)
     .leftJoin(users, eq(submissions.userId, users.id))
-    .where(
-      and(
-        gte(submissions.submittedAt, startDateTime),
-        lt(submissions.submittedAt, endDateTime)
-      )
-    )
     .orderBy(desc(submissions.submittedAt));
 
-  console.log('[DEBUG] Found submissions:', submissionList.length);
+  console.log('[DEBUG] Found total submissions:', submissionList.length);
 
   // 获取所有提交的ID
   const submissionIds = submissionList.map(s => s.submission.id);
   if (submissionIds.length === 0) {
-    console.log('[DEBUG] No submissions found in time range');
-    return [];
+    console.log('[DEBUG] No submissions found');
+    return {};
   }
 
   // 批量获取选题列表
@@ -383,13 +361,26 @@ export async function getSubmissionsByDate(startDate: string, endDate?: string) 
     .from(submissionProjects)
     .where(inArray(submissionProjects.submissionId, submissionIds));
 
-  // 组装数据
-  return submissionList.map(item => ({
-    ...item.submission,
-    userName: item.user?.name || item.user?.username || "未知用户",
-    topics: topics.filter(t => t.submissionId === item.submission.id),
-    projects: projects.filter(p => p.submissionId === item.submission.id),
-  }));
+  // 组装数据并按日期分组
+  const grouped: Record<string, any[]> = {};
+  
+  for (const item of submissionList) {
+    const dateKey = format(item.submission.submittedAt, 'yyyy-MM-dd');
+    
+    if (!grouped[dateKey]) {
+      grouped[dateKey] = [];
+    }
+    
+    grouped[dateKey].push({
+      ...item.submission,
+      userName: item.user?.name || item.user?.username || "未知用户",
+      topics: topics.filter(t => t.submissionId === item.submission.id),
+      projects: projects.filter(p => p.submissionId === item.submission.id),
+    });
+  }
+
+  console.log('[DEBUG] Grouped by dates:', Object.keys(grouped));
+  return grouped;
 }
 
 /**

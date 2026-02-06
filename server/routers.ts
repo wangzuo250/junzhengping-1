@@ -269,14 +269,10 @@ export const appRouter = router({
         };
       }),
 
-    getByDate: publicProcedure
-      .input(z.object({
-        startDate: z.string(),
-        endDate: z.string().optional(),
-      }))
-      .query(async ({ input }) => {
-        const submissions = await db.getSubmissionsByDate(input.startDate, input.endDate);
-        return { submissions };
+    getAll: publicProcedure
+      .query(async () => {
+        const groupedSubmissions = await db.getAllSubmissionsGroupedByDate();
+        return { groupedSubmissions };
       }),
 
     todayStats: protectedProcedure.query(async () => {

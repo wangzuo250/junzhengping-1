@@ -2,8 +2,6 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -16,10 +14,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
-import { Calendar, Table as TableIcon, LayoutGrid } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { Calendar, Table as TableIcon, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 // 入选状态单元格组件
@@ -29,7 +25,6 @@ function SelectedStatusCell({ topicId }: { topicId: number }) {
   const removeFromSelectedMutation = trpc.selectedTopics.removeFromSelected.useMutation({
     onSuccess: () => {
       toast.success("已移除入选");
-      // 刷新数据
       utils.selectedTopics.checkSelected.invalidate({ submissionTopicId: topicId });
     },
     onError: (error) => {
@@ -39,7 +34,6 @@ function SelectedStatusCell({ topicId }: { topicId: number }) {
   const addToSelectedMutation = trpc.selectedTopics.addFromSubmission.useMutation({
     onSuccess: () => {
       toast.success("已成功添加到入选选题");
-      // 刷新数据
       utils.selectedTopics.checkSelected.invalidate({ submissionTopicId: topicId });
     },
     onError: (error) => {
@@ -99,102 +93,33 @@ function SelectedStatusCell({ topicId }: { topicId: number }) {
   );
 }
 
+// 建议形式徽章颜色映射
+const formatColorMap: Record<string, string> = {
+  "钧评": "bg-blue-100 text-blue-800",
+  "长文": "bg-purple-100 text-purple-800",
+  "短视频": "bg-pink-100 text-pink-800",
+  "长视频": "bg-red-100 text-red-800",
+  "记者实拍": "bg-orange-100 text-orange-800",
+  "海报": "bg-green-100 text-green-800",
+  "组图": "bg-teal-100 text-teal-800",
+  "漫画": "bg-cyan-100 text-cyan-800",
+};
+
+// 项目进度徽章颜色映射
+const progressColorMap: Record<string, string> = {
+  "未开始": "bg-gray-100 text-gray-800",
+  "已开始": "bg-blue-100 text-blue-800",
+  "已结束": "bg-green-100 text-green-800",
+  "暂停": "bg-yellow-100 text-yellow-800",
+};
+
 export default function Summary() {
   const { user, isAuthenticated } = useAuth();
-  const [location] = useLocation();
-  
-  // 从 URL 参数获取日期和 submissionId
-  const urlParams = new URLSearchParams(location.split('?')[1]);
-  const urlDate = urlParams.get('date');
-  const highlightSubmissionId = urlParams.get('submissionId') ? parseInt(urlParams.get('submissionId')!) : null;
-  
-  // 使用 useState 的函数形式初始化，只在组件首次渲染时设置一次
-  const [startDate, setStartDate] = useState(() => urlDate || format(new Date(), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(() => urlDate || format(new Date(), 'yyyy-MM-dd'));
-  
-  // 不再使用 useEffect 自动更新日期，让用户手动选择
-  const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [viewMode, setViewMode] = useState<"table" | "card">("card");
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
-  
-  const { data, refetch } = trpc.submissions.getByDate.useQuery({ 
-    startDate, 
-    endDate: startDate === endDate ? undefined : endDate 
-  });
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
-  const addToSelectedMutation = trpc.selectedTopics.addFromSubmission.useMutation({
-    onSuccess: () => {
-      toast.success("已成功添加到入选选题");
-      refetch(); // 刷新数据
-    },
-    onError: (error) => {
-      toast.error(error.message || "添加失败");
-    },
-  });
-
-  const removeFromSelectedMutation = trpc.selectedTopics.removeFromSelected.useMutation({
-    onSuccess: () => {
-      toast.success("已移除入选");
-      refetch(); // 刷新数据
-    },
-    onError: (error) => {
-      toast.error(error.message || "移除失败");
-    },
-  });
-
-  const handleAddToSelected = (submissionTopicId: number) => {
-    if (!window.confirm("确认将此选题添加到入选选题？")) {
-      return;
-    }
-    addToSelectedMutation.mutate({ submissionTopicId });
-  };
-
-  const handleRemoveFromSelected = (submissionTopicId: number) => {
-    if (!window.confirm("确认移除此入选选题？")) {
-      return;
-    }
-    removeFromSelectedMutation.mutate({ submissionTopicId });
-  };
-
-  // 只在组件初始化时从URL参数设置日期（已在useState中处理）
-  // useEffect 已移除，避免日期被意外重置
-
-  // 快捷查询：当周
-  const handleThisWeek = () => {
-    const today = new Date();
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // 周一开始
-    const weekEnd = endOfWeek(today, { weekStartsOn: 1 }); // 周日结束
-    setStartDate(format(weekStart, 'yyyy-MM-dd'));
-    setEndDate(format(weekEnd, 'yyyy-MM-dd'));
-  };
-
-  // 快捷查询：当月
-  const handleThisMonth = () => {
-    const today = new Date();
-    const monthStart = startOfMonth(today);
-    const monthEnd = endOfMonth(today);
-    setStartDate(format(monthStart, 'yyyy-MM-dd'));
-    setEndDate(format(monthEnd, 'yyyy-MM-dd'));
-  };
-
-  // 查询按钮点击
-  const handleQuery = () => {
-    // 验证日期范围（最多3个月）
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const daysDiff = differenceInDays(end, start);
-    
-    if (daysDiff < 0) {
-      toast.error("结束日期不能早于开始日期");
-      return;
-    }
-    
-    if (daysDiff > 90) {
-      toast.error("日期范围最多3个月（90天）");
-      return;
-    }
-    
-    refetch();
-  };
+  const { data, refetch } = trpc.submissions.getAll.useQuery();
 
   const toggleUserSelection = (userId: number) => {
     const newSet = new Set(selectedUsers);
@@ -210,10 +135,15 @@ export default function Summary() {
     setSelectedUsers(new Set());
   };
 
-  // 筛选后的数据
-  const filteredSubmissions = data?.submissions.filter(s => 
-    selectedUsers.size === 0 || selectedUsers.has(s.userId)
-  ) || [];
+  const toggleDateExpanded = (date: string) => {
+    const newSet = new Set(expandedDates);
+    if (newSet.has(date)) {
+      newSet.delete(date);
+    } else {
+      newSet.add(date);
+    }
+    setExpandedDates(newSet);
+  };
 
   if (!isAuthenticated) {
     return (
@@ -233,447 +163,420 @@ export default function Summary() {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="container mx-auto px-4 py-12">
+          <div className="text-center">加载中...</div>
+        </div>
+      </div>
+    );
+  }
+
+  const groupedSubmissions = data.groupedSubmissions;
+  
+  // 获取所有日期并按倒序排列（最新日期在上）
+  const allDates = Object.keys(groupedSubmissions).sort((a, b) => b.localeCompare(a));
+
+  // 获取所有提交数据（用于筛选）
+  const allSubmissions = allDates.flatMap(date => groupedSubmissions[date]);
+
+  // 筛选后的数据
+  const filteredDates = allDates.filter(date => {
+    if (selectedUsers.size === 0) return true;
+    return groupedSubmissions[date].some((s: any) => selectedUsers.has(s.userId));
+  });
+
   // 获取唯一用户列表（去重）
   const uniqueUsers = Array.from(
     new Map(
-      (data?.submissions || []).map(s => [s.userId, { id: s.userId, name: s.submitterName }])
+      allSubmissions.map((s: any) => [s.userId, { id: s.userId, name: s.userName }])
     ).values()
   );
 
   // 统计信息
-  const totalTopics = filteredSubmissions.reduce((sum, s) => sum + s.topics.length, 0);
-  const totalProjects = filteredSubmissions.reduce((sum, s) => sum + s.projects.length, 0);
-
-  // 生成页面标题
-  const pageTitle = startDate === endDate 
-    ? `${startDate} 选题汇总`
-    : `${startDate} 至 ${endDate} 选题汇总`;
+  const filteredSubmissions = filteredDates.flatMap(date => 
+    groupedSubmissions[date].filter((s: any) => 
+      selectedUsers.size === 0 || selectedUsers.has(s.userId)
+    )
+  );
+  const totalTopics = filteredSubmissions.reduce((sum: number, s: any) => sum + s.topics.length, 0);
+  const totalProjects = filteredSubmissions.reduce((sum: number, s: any) => sum + s.projects.length, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Navigation />
+      
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">{pageTitle}</h1>
-        <p className="text-muted-foreground mb-8">
-          查看指定日期范围的选题提交情况，支持表格视图和数据筛选。<br />
-          <span className="text-sm text-amber-600">注意：时间范围是从前一天12:00到当天12:00。例如选择2月5日，实际查询的是2月4日12:00到2月5日12:00的数据。</span>
-        </p>
-
-        {/* 日期选择与视图模式 */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              日期选择与视图模式
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              时间范围：选择日期的前一天12:00到当天12:00
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* 日期范围选择 */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <Label htmlFor="startDate">开始日期</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="endDate">结束日期</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button onClick={handleQuery} className="w-full">
-                  查询
-                </Button>
-              </div>
-              <div className="flex items-end gap-2">
-                <Button onClick={handleThisWeek} variant="outline" className="flex-1">
-                  当周
-                </Button>
-                <Button onClick={handleThisMonth} variant="outline" className="flex-1">
-                  当月
-                </Button>
-              </div>
-            </div>
-
-            {/* 视图切换 */}
-            <div className="flex gap-2">
-              <Button
-                variant={viewMode === "table" ? "default" : "outline"}
-                onClick={() => setViewMode("table")}
-                className="flex items-center gap-2"
-              >
-                <TableIcon className="w-4 h-4" />
-                表格视图
-              </Button>
-              <Button
-                variant={viewMode === "card" ? "default" : "outline"}
-                onClick={() => setViewMode("card")}
-                className="flex items-center gap-2"
-              >
-                <LayoutGrid className="w-4 h-4" />
-                卡片视图
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 用户筛选 */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>用户筛选</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-4">
-              {uniqueUsers.map(u => (
-                <div key={u.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`user-${u.id}`}
-                    checked={selectedUsers.has(u.id)}
-                    onCheckedChange={() => toggleUserSelection(u.id)}
-                  />
-                  <label htmlFor={`user-${u.id}`} className="text-sm cursor-pointer">
-                    {u.name}
-                  </label>
-                </div>
-              ))}
-              {selectedUsers.size > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearUserSelection}>
-                  清空筛选
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 统计信息 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">提交人数</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{uniqueUsers.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">选题总数</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalTopics}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">项目总数</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalProjects}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">显示记录</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{filteredSubmissions.length}</div>
-            </CardContent>
-          </Card>
+        {/* 页面标题 */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              选题汇总
+            </h1>
+          </div>
+          <p className="text-gray-600 ml-7">查看所有历史选题提交记录</p>
         </div>
 
-        {/* 表格视图 */}
-        {viewMode === "table" && (
+        {/* 筛选和视图切换 */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <CardTitle className="text-lg">数据筛选</CardTitle>
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "card")}>
+                <TabsList>
+                  <TabsTrigger value="card" className="flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    卡片视图
+                  </TabsTrigger>
+                  <TabsTrigger value="table" className="flex items-center gap-2">
+                    <TableIcon className="h-4 w-4" />
+                    表格视图
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* 用户筛选 */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">按提交人筛选</h3>
+                {selectedUsers.size > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearUserSelection}>
+                    清空筛选
+                  </Button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {uniqueUsers.map((u: any) => (
+                  <div key={u.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`user-${u.id}`}
+                      checked={selectedUsers.has(u.id)}
+                      onCheckedChange={() => toggleUserSelection(u.id)}
+                    />
+                    <label htmlFor={`user-${u.id}`} className="text-sm cursor-pointer">
+                      {u.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 统计信息 */}
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="text-sm text-gray-600">提交人数</div>
+                <div className="text-2xl font-bold text-blue-600">{filteredSubmissions.length}</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4">
+                <div className="text-sm text-gray-600">选题总数</div>
+                <div className="text-2xl font-bold text-purple-600">{totalTopics}</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="text-sm text-gray-600">项目总数</div>
+                <div className="text-2xl font-bold text-green-600">{totalProjects}</div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4">
+                <div className="text-sm text-gray-600">显示日期</div>
+                <div className="text-2xl font-bold text-orange-600">{filteredDates.length}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 按日期分组显示 */}
+        {filteredDates.length === 0 ? (
           <Card>
-            <CardHeader>
-              <CardTitle>表格视图</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {filteredSubmissions.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">暂无数据</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>姓名</TableHead>
-                        <TableHead>选题内容</TableHead>
-                        <TableHead>建议形式</TableHead>
-                        <TableHead>创作思路</TableHead>
-                        <TableHead>创作者</TableHead>
-                        <TableHead>相关链接</TableHead>
-                        <TableHead>项目进度</TableHead>
-                        <TableHead>长期策划</TableHead>
-                        <TableHead>工作建议</TableHead>
-                        <TableHead>风险提示</TableHead>
-                        {user?.role === 'admin' && <TableHead>操作</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredSubmissions.map((submission) => {
-                        const maxRows = Math.max(submission.topics.length, submission.projects.length, 1);
-                        return Array.from({ length: maxRows }).map((_, rowIndex) => {
-                          const topic = submission.topics[rowIndex];
-                          const project = submission.projects[rowIndex];
-                          const isFirstRow = rowIndex === 0;
-                          
-                          return (
-                            <TableRow 
-                              key={`${submission.id}-${rowIndex}`}
-                              className={highlightSubmissionId === submission.id ? "bg-yellow-50" : ""}
-                            >
-                              {isFirstRow && (
-                                <TableCell rowSpan={maxRows} className="align-top">
-                                  {submission.submitterName}
-                                </TableCell>
-                              )}
-                              <TableCell className="align-top max-w-xs">
-                                <div className="whitespace-normal break-words">
-                                  {topic?.content || '-'}
-                                </div>
-                              </TableCell>
-                              <TableCell className="align-top">
-                                {topic?.suggestedFormat ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {topic.suggestedFormat.split(',').map((format, i) => (
-                                      <Badge key={i} variant="secondary">{format}</Badge>
-                                    ))}
-                                  </div>
-                                ) : '-'}
-                              </TableCell>
-                              <TableCell className="align-top max-w-xs">
-                                <div className="whitespace-normal break-words">
-                                  {topic?.creativeIdea || '-'}
-                                </div>
-                              </TableCell>
-                              <TableCell className="align-top">
-                                {topic?.creator || '-'}
-                              </TableCell>
-                              <TableCell className="align-top">
-                                {topic?.relatedLink ? (
-                                  <a 
-                                    href={topic.relatedLink} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline"
-                                  >
-                                    链接
-                                  </a>
-                                ) : '-'}
-                              </TableCell>
-                              <TableCell className="align-top">
-                                {project ? (
-                                  <div className="space-y-1">
-                                    <div className="font-medium">{project.projectName || '-'}</div>
-                                    {project.progress && (
-                                      <Badge 
-                                        variant={
-                                          project.progress === '已开始' ? 'default' :
-                                          project.progress === '已结束' ? 'secondary' :
-                                          project.progress === '暂停' ? 'destructive' :
-                                          'outline'
-                                        }
-                                      >
-                                        {project.progress}
-                                      </Badge>
-                                    )}
-                                    {project.note && (
-                                      <div className="text-xs text-muted-foreground">{project.note}</div>
-                                    )}
-                                  </div>
-                                ) : '-'}
-                              </TableCell>
-                              {isFirstRow && (
-                                <>
-                                  <TableCell rowSpan={maxRows} className="align-top">
-                                    {submission.longTermPlan || '-'}
-                                  </TableCell>
-                                  <TableCell rowSpan={maxRows} className="align-top">
-                                    {submission.workSuggestion || '-'}
-                                  </TableCell>
-                                  <TableCell rowSpan={maxRows} className="align-top">
-                                    {submission.riskWarning || '-'}
-                                  </TableCell>
-                                </>
-                              )}
-                              {user?.role === 'admin' && topic && (
-                                <TableCell className="align-top">
-                                  <SelectedStatusCell topicId={topic.id} />
-                                </TableCell>
-                              )}
-                              {user?.role === 'admin' && !topic && (
-                                <TableCell className="align-top">-</TableCell>
-                              )}
-                            </TableRow>
-                          );
-                        });
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+            <CardContent className="py-12 text-center text-gray-500">
+              暂无数据
             </CardContent>
           </Card>
-        )}
+        ) : (
+          <div className="space-y-4">
+            {filteredDates.map((date, dateIndex) => {
+              const dateSubmissions = groupedSubmissions[date].filter((s: any) =>
+                selectedUsers.size === 0 || selectedUsers.has(s.userId)
+              );
+              
+              // 双色交替：偶数索引用浅蓝色，奇数索引用白色
+              const bgColor = dateIndex % 2 === 0 ? "bg-blue-50/50" : "bg-white";
+              const isExpanded = expandedDates.has(date);
 
-        {/* 卡片视图 */}
-        {viewMode === "card" && (
-          <div className="space-y-6">
-            {filteredSubmissions.length === 0 ? (
-              <Card>
-                <CardContent className="py-8">
-                  <p className="text-center text-muted-foreground">暂无数据</p>
-                </CardContent>
-              </Card>
-            ) : (
-              filteredSubmissions.map((submission) => (
-                <Card key={submission.id}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span>{submission.submitterName} 的提交</span>
-                      <span className="text-sm text-muted-foreground">
-                        {format(new Date(submission.submittedAt), 'yyyy-MM-dd HH:mm')}
-                      </span>
-                    </CardTitle>
+              return (
+                <Card key={date} className={`${bgColor} border-2`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="h-5 w-5 text-blue-600" />
+                        <CardTitle className="text-xl">
+                          {new Date(date + 'T00:00:00').toLocaleDateString('zh-CN', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            weekday: 'long'
+                          })}
+                        </CardTitle>
+                        <Badge variant="secondary">
+                          {dateSubmissions.length} 人提交
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleDateExpanded(date)}
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-1" />
+                            收起
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-1" />
+                            展开
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* 选题列表 */}
-                    {submission.topics.length > 0 && (
-                      <div>
-                        <h3 className="font-semibold mb-3">选题列表</h3>
+
+                  {isExpanded && (
+                    <CardContent>
+                      {viewMode === "card" ? (
+                        // 卡片视图
                         <div className="space-y-4">
-                          {submission.topics.map((topic, index) => (
-                            <div key={topic.id} className="border-l-4 border-blue-500 pl-4 py-2">
-                              <div className="font-medium mb-2">选题 {index + 1}</div>
-                              {topic.content && (
-                                <div className="mb-2">
-                                  <span className="text-sm text-muted-foreground">内容：</span>
-                                  <span className="ml-2">{topic.content}</span>
+                          {dateSubmissions.map((submission: any) => (
+                            <Card key={submission.id} className="bg-white">
+                              <CardHeader className="pb-3">
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="text-lg">{submission.userName}</CardTitle>
+                                  <span className="text-sm text-gray-500">
+                                    {new Date(submission.submittedAt).toLocaleTimeString('zh-CN', {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
                                 </div>
-                              )}
-                              {topic.suggestedFormat && (
-                                <div className="mb-2">
-                                  <span className="text-sm text-muted-foreground">建议形式：</span>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {topic.suggestedFormat.split(',').map((format, i) => (
-                                      <Badge key={i} variant="secondary">{format}</Badge>
-                                    ))}
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                {/* 选题列表 */}
+                                {submission.topics.length > 0 && (
+                                  <div>
+                                    <h4 className="font-semibold mb-2">选题列表</h4>
+                                    <div className="space-y-3">
+                                      {submission.topics.map((topic: any) => (
+                                        <div key={topic.id} className="border rounded-lg p-3 bg-gray-50">
+                                          {topic.content && (
+                                            <div className="mb-2">
+                                              <span className="font-medium">内容：</span>
+                                              <span className="whitespace-pre-wrap">{topic.content}</span>
+                                            </div>
+                                          )}
+                                          {topic.suggestedFormat && (
+                                            <div className="mb-2 flex flex-wrap gap-1">
+                                              <span className="font-medium">建议形式：</span>
+                                              {topic.suggestedFormat.split(',').map((format: string, i: number) => (
+                                                <Badge key={i} className={formatColorMap[format.trim()] || "bg-gray-100 text-gray-800"}>
+                                                  {format.trim()}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          )}
+                                          {topic.creativeIdea && (
+                                            <div className="mb-2">
+                                              <span className="font-medium">创作思路：</span>
+                                              <span className="whitespace-pre-wrap">{topic.creativeIdea}</span>
+                                            </div>
+                                          )}
+                                          {topic.creator && (
+                                            <div className="mb-2">
+                                              <span className="font-medium">创作者：</span>
+                                              <span>{topic.creator}</span>
+                                            </div>
+                                          )}
+                                          {topic.relatedLink && (
+                                            <div className="mb-2">
+                                              <span className="font-medium">相关链接：</span>
+                                              <a href={topic.relatedLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                                {topic.relatedLink}
+                                              </a>
+                                            </div>
+                                          )}
+                                          {user?.role === 'admin' && (
+                                            <div className="mt-2">
+                                              <SelectedStatusCell topicId={topic.id} />
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                              {topic.creativeIdea && (
-                                <div className="mb-2">
-                                  <span className="text-sm text-muted-foreground">创作思路：</span>
-                                  <span className="ml-2">{topic.creativeIdea}</span>
-                                </div>
-                              )}
-                              {topic.creator && (
-                                <div className="mb-2">
-                                  <span className="text-sm text-muted-foreground">创作者：</span>
-                                  <span className="ml-2">{topic.creator}</span>
-                                </div>
-                              )}
-                              {topic.relatedLink && (
-                                <div className="mb-2">
-                                  <span className="text-sm text-muted-foreground">相关链接：</span>
-                                  <a 
-                                    href={topic.relatedLink} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="ml-2 text-blue-600 hover:underline"
-                                  >
-                                    {topic.relatedLink}
-                                  </a>
-                                </div>
-                              )}
-                            </div>
+                                )}
+
+                                {/* 项目进度列表 */}
+                                {submission.projects.length > 0 && (
+                                  <div>
+                                    <h4 className="font-semibold mb-2">项目进度</h4>
+                                    <div className="space-y-2">
+                                      {submission.projects.map((project: any) => (
+                                        <div key={project.id} className="flex items-center gap-2 text-sm">
+                                          {project.projectName && <span className="font-medium">{project.projectName}</span>}
+                                          {project.progress && (
+                                            <Badge className={progressColorMap[project.progress] || "bg-gray-100 text-gray-800"}>
+                                              {project.progress}
+                                            </Badge>
+                                          )}
+                                          {project.note && <span className="text-gray-600">({project.note})</span>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 其他信息 */}
+                                {(submission.longTermPlan || submission.workSuggestion || submission.riskWarning) && (
+                                  <div className="border-t pt-3 space-y-2">
+                                    {submission.longTermPlan && (
+                                      <div>
+                                        <span className="font-medium text-sm">长期策划：</span>
+                                        <span className="text-sm whitespace-pre-wrap">{submission.longTermPlan}</span>
+                                      </div>
+                                    )}
+                                    {submission.workSuggestion && (
+                                      <div>
+                                        <span className="font-medium text-sm">工作建议：</span>
+                                        <span className="text-sm whitespace-pre-wrap">{submission.workSuggestion}</span>
+                                      </div>
+                                    )}
+                                    {submission.riskWarning && (
+                                      <div>
+                                        <span className="font-medium text-sm">风险提示：</span>
+                                        <span className="text-sm whitespace-pre-wrap">{submission.riskWarning}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        // 表格视图
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>姓名</TableHead>
+                                <TableHead>选题内容</TableHead>
+                                <TableHead>建议形式</TableHead>
+                                <TableHead>创作思路</TableHead>
+                                <TableHead>创作者</TableHead>
+                                <TableHead>相关链接</TableHead>
+                                <TableHead>项目进度</TableHead>
+                                <TableHead>其他信息</TableHead>
+                                {user?.role === 'admin' && <TableHead>操作</TableHead>}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {dateSubmissions.map((submission: any) => {
+                                const maxRows = Math.max(submission.topics.length, submission.projects.length, 1);
+                                return Array.from({ length: maxRows }).map((_, rowIndex) => {
+                                  const topic = submission.topics[rowIndex];
+                                  const project = submission.projects[rowIndex];
+                                  const isFirstRow = rowIndex === 0;
 
-                    {/* 项目进度列表 */}
-                    {submission.projects.length > 0 && (
-                      <div>
-                        <h3 className="font-semibold mb-3">项目进度列表</h3>
-                        <div className="space-y-4">
-                          {submission.projects.map((project, index) => (
-                            <div key={project.id} className="border-l-4 border-green-500 pl-4 py-2">
-                              <div className="font-medium mb-2">项目 {index + 1}</div>
-                              {project.projectName && (
-                                <div className="mb-2">
-                                  <span className="text-sm text-muted-foreground">项目名：</span>
-                                  <span className="ml-2">{project.projectName}</span>
-                                </div>
-                              )}
-                              {project.progress && (
-                                <div className="mb-2">
-                                  <span className="text-sm text-muted-foreground">进度：</span>
-                                  <Badge 
-                                    className="ml-2"
-                                    variant={
-                                      project.progress === '已开始' ? 'default' :
-                                      project.progress === '已结束' ? 'secondary' :
-                                      project.progress === '暂停' ? 'destructive' :
-                                      'outline'
-                                    }
-                                  >
-                                    {project.progress}
-                                  </Badge>
-                                </div>
-                              )}
-                              {project.note && (
-                                <div className="mb-2">
-                                  <span className="text-sm text-muted-foreground">备注：</span>
-                                  <span className="ml-2">{project.note}</span>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                                  return (
+                                    <TableRow key={`${submission.id}-${rowIndex}`}>
+                                      {isFirstRow && (
+                                        <TableCell rowSpan={maxRows} className="align-top font-medium">
+                                          {submission.userName}
+                                        </TableCell>
+                                      )}
+                                      <TableCell className="whitespace-pre-wrap max-w-xs">
+                                        {topic?.content || "-"}
+                                      </TableCell>
+                                      <TableCell>
+                                        {topic?.suggestedFormat ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {topic.suggestedFormat.split(',').map((format: string, i: number) => (
+                                              <Badge key={i} className={formatColorMap[format.trim()] || "bg-gray-100 text-gray-800"}>
+                                                {format.trim()}
+                                              </Badge>
+                                            ))}
+                                          </div>
+                                        ) : "-"}
+                                      </TableCell>
+                                      <TableCell className="whitespace-pre-wrap max-w-xs">
+                                        {topic?.creativeIdea || "-"}
+                                      </TableCell>
+                                      <TableCell>{topic?.creator || "-"}</TableCell>
+                                      <TableCell className="max-w-xs">
+                                        {topic?.relatedLink ? (
+                                          <a href={topic.relatedLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm break-all">
+                                            {topic.relatedLink}
+                                          </a>
+                                        ) : "-"}
+                                      </TableCell>
+                                      <TableCell>
+                                        {project ? (
+                                          <div className="space-y-1">
+                                            {project.projectName && <div className="font-medium text-sm">{project.projectName}</div>}
+                                            {project.progress && (
+                                              <Badge className={progressColorMap[project.progress] || "bg-gray-100 text-gray-800"}>
+                                                {project.progress}
+                                              </Badge>
+                                            )}
+                                            {project.note && <div className="text-xs text-gray-600">{project.note}</div>}
+                                          </div>
+                                        ) : "-"}
+                                      </TableCell>
+                                      {isFirstRow && (
+                                        <TableCell rowSpan={maxRows} className="align-top max-w-xs">
+                                          <div className="space-y-2 text-sm">
+                                            {submission.longTermPlan && (
+                                              <div>
+                                                <span className="font-medium">长期策划：</span>
+                                                <span className="whitespace-pre-wrap">{submission.longTermPlan}</span>
+                                              </div>
+                                            )}
+                                            {submission.workSuggestion && (
+                                              <div>
+                                                <span className="font-medium">工作建议：</span>
+                                                <span className="whitespace-pre-wrap">{submission.workSuggestion}</span>
+                                              </div>
+                                            )}
+                                            {submission.riskWarning && (
+                                              <div>
+                                                <span className="font-medium">风险提示：</span>
+                                                <span className="whitespace-pre-wrap">{submission.riskWarning}</span>
+                                              </div>
+                                            )}
+                                            {!submission.longTermPlan && !submission.workSuggestion && !submission.riskWarning && "-"}
+                                          </div>
+                                        </TableCell>
+                                      )}
+                                      {user?.role === 'admin' && (
+                                        <TableCell>
+                                          {topic && <SelectedStatusCell topicId={topic.id} />}
+                                        </TableCell>
+                                      )}
+                                    </TableRow>
+                                  );
+                                });
+                              })}
+                            </TableBody>
+                          </Table>
                         </div>
-                      </div>
-                    )}
-
-                    {/* 其他信息 */}
-                    {(submission.longTermPlan || submission.workSuggestion || submission.riskWarning) && (
-                      <div>
-                        <h3 className="font-semibold mb-3">其他信息</h3>
-                        <div className="space-y-2">
-                          {submission.longTermPlan && (
-                            <div>
-                              <span className="text-sm text-muted-foreground">长期策划：</span>
-                              <p className="mt-1">{submission.longTermPlan}</p>
-                            </div>
-                          )}
-                          {submission.workSuggestion && (
-                            <div>
-                              <span className="text-sm text-muted-foreground">工作建议：</span>
-                              <p className="mt-1">{submission.workSuggestion}</p>
-                            </div>
-                          )}
-                          {submission.riskWarning && (
-                            <div>
-                              <span className="text-sm text-muted-foreground">风险提示：</span>
-                              <p className="mt-1">{submission.riskWarning}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
+                      )}
+                    </CardContent>
+                  )}
                 </Card>
-              ))
-            )}
+              );
+            })}
           </div>
         )}
       </div>

@@ -21,6 +21,9 @@ export function useAuth(options?: UseAuthOptions) {
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       utils.auth.me.setData(undefined, null);
+      utils.auth.me.invalidate();
+      // 退出成功后跳转到首页
+      window.location.href = "/";
     },
   });
 
@@ -32,14 +35,11 @@ export function useAuth(options?: UseAuthOptions) {
         error instanceof TRPCClientError &&
         error.data?.code === "UNAUTHORIZED"
       ) {
+        // 已经退出登录，直接跳转
+        window.location.href = "/";
         return;
       }
       throw error;
-    } finally {
-      utils.auth.me.setData(undefined, null);
-      await utils.auth.me.invalidate();
-      // 退出后跳转到首页
-      window.location.href = "/";
     }
   }, [logoutMutation, utils]);
 

@@ -1115,4 +1115,4 @@
 `useAuth` hook 中的 `logout` 函数只清除了cookie和缓存，但没有跳转到首页。`DashboardLayout` 中的退出按钮使用的是 `useAuth().logout`，所以点击后虽然清除了cookie，但页面没有刷新，用户看起来还是登录状态。
 
 **修复方案**：
-在 `useAuth` hook 的 `logout` 函数中添加 `window.location.href = "/"` 跳转逻辑，确保退出后自动跳转到首页。
+在 `logoutMutation` 的 `onSuccess` 回调中添加跳转逻辑，确保退出请求成功后自动跳转到首页。同时在 `logout` 函数的 UNAUTHORIZED 错误处理中也添加跳转，处理已经退出的情况。

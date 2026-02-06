@@ -1100,3 +1100,19 @@
 - 在 `getMonthlyContribution` 函数中添加 `rejectedCount` 字段的统计逻辑
 - 修复 `publishRate` 字段的格式（去掉百分号，前端会自动添加）
 - 创建单元测试并验证功能正常
+
+
+## 新问题：账号无法退出
+
+- [x] 分析退出按钮的点击事件和后端logout接口
+- [x] 检查logout接口是否正常工作
+- [x] 修复退出功能
+- [x] 测试退出后能否重新登录
+
+**优先级**：✅ 已完成
+
+**问题原因**：
+`useAuth` hook 中的 `logout` 函数只清除了cookie和缓存，但没有跳转到首页。`DashboardLayout` 中的退出按钮使用的是 `useAuth().logout`，所以点击后虽然清除了cookie，但页面没有刷新，用户看起来还是登录状态。
+
+**修复方案**：
+在 `useAuth` hook 的 `logout` 函数中添加 `window.location.href = "/"` 跳转逻辑，确保退出后自动跳转到首页。

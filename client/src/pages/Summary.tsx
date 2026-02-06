@@ -203,6 +203,8 @@ export default function Summary() {
   );
   const totalTopics = filteredSubmissions.reduce((sum: number, s: any) => sum + s.topics.length, 0);
   const totalProjects = filteredSubmissions.reduce((sum: number, s: any) => sum + s.projects.length, 0);
+  // 修复：统计去重后的用户数，而不是提交记录数
+  const uniqueUserCount = new Set(filteredSubmissions.map((s: any) => s.userId)).size;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -270,7 +272,7 @@ export default function Summary() {
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-blue-50 rounded-lg p-4">
                 <div className="text-sm text-gray-600">提交人数</div>
-                <div className="text-2xl font-bold text-blue-600">{filteredSubmissions.length}</div>
+                <div className="text-2xl font-bold text-blue-600">{uniqueUserCount}</div>
               </div>
               <div className="bg-purple-50 rounded-lg p-4">
                 <div className="text-sm text-gray-600">选题总数</div>
@@ -321,7 +323,7 @@ export default function Summary() {
                           })}
                         </CardTitle>
                         <Badge variant="secondary">
-                          {dateSubmissions.length} 人提交
+                          {new Set(dateSubmissions.map((s: any) => s.userId)).size} 人提交
                         </Badge>
                       </div>
                       <Button

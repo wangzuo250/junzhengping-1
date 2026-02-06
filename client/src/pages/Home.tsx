@@ -3,12 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
+import HomeSkeleton from "@/components/HomeSkeleton";
 import { FileEdit, List, Star, TrendingUp, Users } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
   const { user, isAuthenticated, loading } = useAuth();
   const { data: todayStats } = trpc.submissions.todayStats.useQuery();
+
+  if (loading) {
+    return <HomeSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -57,12 +62,7 @@ export default function Home() {
         )}
 
         {/* Action Cards */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">加载中...</p>
-          </div>
-        ) : isAuthenticated ? (
+        {isAuthenticated ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">
               <Link href="/form">

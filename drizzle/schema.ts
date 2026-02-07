@@ -114,6 +114,7 @@ export const selectedTopics = mysqlTable("selected_topics", {
   
   // 进度和状态信息
   leaderComment: text("leaderComment"), // 领导点评
+  commentBy: varchar("commentBy", { length: 100 }), // 点评人姓名
   creators: text("creators"), // 创作人（可多人多形式）
   progress: mysqlEnum("progress", [
     "未开始", "进行中", "已完成", "已暂停"

@@ -44,6 +44,9 @@ export default function SelectedTopics() {
     suggestion: "",
   });
 
+  // 领导点评状态
+  const [commentInputs, setCommentInputs] = useState<Record<number, string>>({});
+
   const { data: topics, refetch } = trpc.selectedTopics.listAll.useQuery();
   const monthKeys = Array.from(new Set(topics?.map((t: any) => t.monthKey) || [])).sort((a, b) => b.localeCompare(a));
   const { data: users } = trpc.users.list.useQuery();
@@ -81,6 +84,30 @@ export default function SelectedTopics() {
       toast.error(`删除失败：${error.message}`);
     },
   });
+
+  const updateCommentMutation = trpc.selectedTopics.updateComment.useMutation({
+    onSuccess: () => {
+      toast.success("点评提交成功");
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(`点评提交失败：${error.message}`);
+    },
+  });
+
+  const handleSubmitComment = (topicId: number) => {
+    const comment = commentInputs[topicId]?.trim();
+    if (!comment) {
+      toast.error("请输入点评内容");
+      return;
+    }
+    updateCommentMutation.mutate({
+      id: topicId,
+      leaderComment: comment,
+    });
+    // 清空输入框
+    setCommentInputs({ ...commentInputs, [topicId]: "" });
+  };
 
   const handleEdit = (topic: any) => {
     setEditingTopic(topic);
@@ -460,28 +487,51 @@ export default function SelectedTopics() {
                             </div>
                           </div>
                         </CardHeader>
-                        {(topic.leaderComment || topic.creators || topic.remark) && (
-                          <CardContent className="text-sm space-y-2">
-                            {topic.leaderComment && (
-                              <div>
-                                <span className="font-medium">领导点评：</span>
-                                <span className="text-gray-700">{topic.leaderComment}</span>
+                        <CardContent className="text-sm space-y-3">
+                          {/* 显示已有的领导点评 */}
+                          {topic.leaderComment && (
+                            <div className="bg-blue-50 p-3 rounded-md">
+                              <span className="font-medium text-blue-900">【{topic.commentBy || "领导"}】：</span>
+                              <span className="text-gray-700">{topic.leaderComment}</span>
+                            </div>
+                          )}
+
+                          {/* 管理员可见的点评输入框 */}
+                          {user?.role === "admin" && (
+                            <div className="space-y-2">
+                              <Label className="text-xs text-gray-600">领导点评（仅管理员可见）</Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  placeholder="输入点评内容..."
+                                  value={commentInputs[topic.id] || ""}
+                                  onChange={(e) => setCommentInputs({ ...commentInputs, [topic.id]: e.target.value })}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSubmitComment(topic.id)}
+                                  disabled={updateCommentMutation.isPending}
+                                >
+                                  提交
+                                </Button>
                               </div>
-                            )}
-                            {topic.creators && (
-                              <div>
-                                <span className="font-medium">创作人：</span>
-                                <span className="text-gray-700">{topic.creators}</span>
-                              </div>
-                            )}
-                            {topic.remark && (
-                              <div>
-                                <span className="font-medium">备注：</span>
-                                <span className="text-gray-700">{topic.remark}</span>
-                              </div>
-                            )}
-                          </CardContent>
-                        )}
+                            </div>
+                          )}
+
+                          {/* 其他信息 */}
+                          {topic.creators && (
+                            <div>
+                              <span className="font-medium">创作人：</span>
+                              <span className="text-gray-700">{topic.creators}</span>
+                            </div>
+                          )}
+                          {topic.remark && (
+                            <div>
+                              <span className="font-medium">备注：</span>
+                              <span className="text-gray-700">{topic.remark}</span>
+                            </div>
+                          )}
+                        </CardContent>
                       </Card>
                     ))}
                   </div>

@@ -1,0 +1,1 @@
+ALTER TABLE `selected_topics` ADD `commentBy` varchar(100);

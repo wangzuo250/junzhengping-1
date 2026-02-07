@@ -495,6 +495,7 @@ export const appRouter = router({
           content: z.string().optional(),
           suggestion: z.string().optional(),
           leaderComment: z.string().optional(),
+          commentBy: z.string().optional(),
           creators: z.string().optional(),
           progress: z.enum(["未开始", "进行中", "已完成", "已暂停"]).optional(),
           status: z.enum(["未发布", "已发布", "否决"]).optional(),
@@ -563,6 +564,31 @@ export const appRouter = router({
           target: `Topic ${input.id}`,
         });
         return { success: true };
+      }),
+
+    // 提交领导点评（管理员专用）
+    updateComment: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        leaderComment: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // 获取当前用户姓名作为点评人
+        const commentBy = ctx.user.name || ctx.user.username || '管理员';
+        
+        await db.updateSelectedTopic(input.id, {
+          leaderComment: input.leaderComment,
+          commentBy: commentBy,
+        });
+
+        await db.createSystemLog({
+          userId: ctx.user.id,
+          action: "UPDATE_LEADER_COMMENT",
+          target: `Topic ${input.id}`,
+          details: { commentBy },
+        });
+
+        return { success: true, commentBy };
       }),
 
     progressStats: protectedProcedure

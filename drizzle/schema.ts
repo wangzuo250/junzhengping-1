@@ -171,3 +171,17 @@ export const topicStatusHistory = mysqlTable("topic_status_history", {
 
 export type TopicStatusHistory = typeof topicStatusHistory.$inferSelect;
 export type InsertTopicStatusHistory = typeof topicStatusHistory.$inferInsert;
+
+/**
+ * 选题点评记录表 - 存储领导对入选选题的多条点评
+ */
+export const topicComments = mysqlTable("topic_comments", {
+  id: int("id").autoincrement().primaryKey(),
+  topicId: int("topicId").notNull(), // 关联 selected_topics 表
+  commentBy: varchar("commentBy", { length: 100 }).notNull(), // 点评人姓名
+  comment: text("comment").notNull(), // 点评内容
+  createdAt: timestamp("createdAt").defaultNow().notNull(), // 点评时间
+});
+
+export type TopicComment = typeof topicComments.$inferSelect;
+export type InsertTopicComment = typeof topicComments.$inferInsert;

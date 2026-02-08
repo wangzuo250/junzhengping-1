@@ -21,8 +21,8 @@ export default function SelectedStats() {
       if (!t.selectedDate) return null;
       const date = new Date(t.selectedDate);
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    }).filter((m): m is string => m !== null) || []
-  )).sort((a, b) => b.localeCompare(a));
+    }).filter((m: any): m is string => m !== null) || []
+  )).sort((a: any, b: any) => b.localeCompare(a)) as string[];
   
   const { data: progressStats, isLoading: progressLoading } = trpc.selectedTopics.progressStats.useQuery(
     { month: selectedMonth || undefined },

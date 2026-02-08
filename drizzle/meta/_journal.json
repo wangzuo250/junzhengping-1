@@ -50,6 +50,13 @@
       "when": 1770422883718,
       "tag": "0006_opposite_joseph",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1770427137418,
+      "tag": "0007_petite_wolfpack",
+      "breakpoints": true
     }
   ]
 }

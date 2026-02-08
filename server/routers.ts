@@ -316,13 +316,65 @@ export const appRouter = router({
 
   // 入选选题管理
   selectedTopics: router({
+    // 选题点评管理
+    comments: router({
+      // 添加点评（管理员专用）
+      create: adminProcedure
+        .input(z.object({
+          topicId: z.number(),
+          comment: z.string().min(1, '点评内容不能为空'),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          const { getDb } = await import('./db');
+          const { sql } = await import('drizzle-orm');
+          const drizzleDb = await getDb();
+          if (!drizzleDb) throw new Error('Database not available');
+          
+          const userName = ctx.user.name || ctx.user.username || '管理员';
+          await drizzleDb.execute(sql`
+            INSERT INTO topic_comments (topicId, commentBy, comment, createdAt)
+            VALUES (${input.topicId}, ${userName}, ${input.comment}, NOW())
+          `);
+
+          await db.createSystemLog({
+            userId: ctx.user.id,
+            action: 'ADD_TOPIC_COMMENT',
+            target: `Topic ${input.topicId}`,
+            details: { comment: input.comment },
+          });
+
+          return { success: true };
+        }),
+
+      // 查询某个选题的所有点评（全员可见）
+      list: protectedProcedure
+        .input(z.object({
+          topicId: z.number(),
+        }))
+        .query(async ({ input }) => {
+          const { getDb } = await import('./db');
+          const { sql } = await import('drizzle-orm');
+          const drizzleDb = await getDb();
+          if (!drizzleDb) return [];
+          
+          const result: any = await drizzleDb.execute(sql`
+            SELECT id, comment, commentBy, createdAt 
+            FROM topic_comments 
+            WHERE topicId = ${input.topicId}
+            ORDER BY createdAt DESC
+          `);
+          const comments = result[0] || result;
+
+          return comments;
+        }),
+    }),
     // 检查选题是否已入选
     checkSelected: protectedProcedure
       .input(z.object({
         submissionTopicId: z.number(),
       }))
       .query(async ({ input }) => {
-        const selectedTopic = await db.getSelectedTopicBySourceId(input.submissionTopicId);
+        const selectedTopic = await db.getSelectedTopicBySubmissionId(input.submissionTopicId);
         return { 
           isSelected: !!selectedTopic,
           selectedTopicId: selectedTopic?.id || null,
@@ -335,7 +387,7 @@ export const appRouter = router({
         submissionTopicId: z.number(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const selectedTopic = await db.getSelectedTopicBySourceId(input.submissionTopicId);
+        const selectedTopic = await db.getSelectedTopicBySubmissionId(input.submissionTopicId);
         if (!selectedTopic) {
           throw new TRPCError({
             code: 'NOT_FOUND',
@@ -371,7 +423,7 @@ export const appRouter = router({
         }
 
         // 检查是否已经添加到入选
-        const existing = await db.getSelectedTopicBySourceId(input.submissionTopicId);
+        const existing = await db.getSelectedTopicBySubmissionId(input.submissionTopicId);
         if (existing) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
@@ -499,7 +551,7 @@ export const appRouter = router({
           creators: z.string().optional(),
           progress: z.enum(["未开始", "进行中", "已完成", "已暂停"]).optional(),
           status: z.enum(["未发布", "已发布", "否决"]).optional(),
-          remark: z.string().optional(),
+          remark: z.string().nullable().optional(),
         }),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -685,7 +737,7 @@ export const appRouter = router({
         
         const allTopics = await db.getAllSelectedTopics();
         // 筛选包含目标用户姓名的入选选题
-        return allTopics.filter(topic => 
+        return allTopics.filter((topic: any) => 
           topic.submitters && topic.submitters.includes(targetUser.name || '')
         );
       }),

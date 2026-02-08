@@ -1,5 +1,6 @@
 import { eq, and, gte, lt, lte, desc, sql, count, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { createPool } from "mysql2";
 import { 
   InsertUser, 
   users, 
@@ -10,6 +11,7 @@ import {
   selectedTopics,
   systemLogs,
   topicStatusHistory,
+  topicComments,
   type CollectionForm,
   type Submission,
   type SubmissionTopic,
@@ -33,7 +35,9 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const pool = createPool(process.env.DATABASE_URL);
+      _db = drizzle(pool);
+      console.log('[Database] Connected successfully');
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -499,69 +503,145 @@ export async function createSelectedTopic(data: InsertSelectedTopic): Promise<nu
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(selectedTopics).values(data);
-  return Number(result[0].insertId);
+  try {
+    // 使用原生SQL插入
+    const result: any = await db.execute(sql`
+      INSERT INTO selected_topics (
+        content, suggestion, submitters, creators, progress, status, 
+        selectedDate, monthKey, sourceSubmissionId, createdBy
+      ) VALUES (
+        ${data.content}, ${data.suggestion || ''}, ${data.submitters}, 
+        ${data.creators || ''}, ${data.progress}, ${data.status},
+        ${data.selectedDate}, ${data.monthKey}, ${data.sourceSubmissionId}, ${data.createdBy}
+      )
+    `);
+    const insertId = result[0]?.insertId || result.insertId;
+    console.log('[createSelectedTopic] Insert success, ID:', insertId);
+    return Number(insertId);
+  } catch (error) {
+    console.error('[createSelectedTopic] Error:', error);
+    throw error;
+  }
 }
 
 export async function getSelectedTopicsByMonth(monthKey: string) {
   const db = await getDb();
   if (!db) return [];
 
-  return await db
-    .select()
-    .from(selectedTopics)
-    .where(eq(selectedTopics.monthKey, monthKey))
-    .orderBy(desc(selectedTopics.selectedDate));
+  const result: any = await db.execute(sql`
+    SELECT * FROM selected_topics 
+    WHERE monthKey = ${monthKey}
+    ORDER BY selectedDate DESC
+  `);
+  return result[0] || result;
 }
 
 export async function getAllSelectedTopics() {
-  const db = await getDb();
-  if (!db) return [];
+  try {
+    const db = await getDb();
+    if (!db) {
+      console.log('[getAllSelectedTopics] No database connection');
+      return [];
+    }
 
-  return await db
-    .select()
-    .from(selectedTopics)
-    .orderBy(desc(selectedTopics.selectedDate));
+    console.log('[getAllSelectedTopics] Starting query...');
+    // 使用原生SQL查询
+    const result: any = await db.execute(sql`
+      SELECT * FROM selected_topics 
+      ORDER BY selectedDate DESC
+    `);
+    const topics = result[0] || result; // mysql2返回[rows, fields]，取第一个元素
+    
+    console.log('[getAllSelectedTopics] Found topics:', topics.length);
+
+    // 为每个选题查询关联的点评（使用原生SQL）
+    try {
+      const topicsWithComments = await Promise.all(
+        topics.map(async (topic: any) => {
+          try {
+            const commentsResult: any = await db.execute(sql`
+              SELECT id, comment, commentBy as userName, createdAt 
+              FROM topic_comments 
+              WHERE topicId = ${topic.id}
+              ORDER BY createdAt DESC
+            `);
+            const comments = commentsResult[0] || commentsResult;
+
+            return {
+              ...topic,
+              comments: comments.map((c: any) => ({
+                ...c,
+                createdAt: new Date(c.createdAt).toISOString(), // 转换为字符串避免序列化问题
+              })),
+            };
+          } catch (commentError) {
+            console.error(`[getAllSelectedTopics] Error fetching comments for topic ${topic.id}:`, commentError);
+            return { ...topic, comments: [] };
+          }
+        })
+      );
+      
+      console.log('[getAllSelectedTopics] Returning topics with comments:', topicsWithComments.length);
+      return topicsWithComments;
+    } catch (error) {
+      console.error('[getAllSelectedTopics] Error fetching comments:', error);
+      // 如果查询comments失败，返回不带comments的topics
+      return topics.map((topic: any) => ({ ...topic, comments: [] }));
+    }
+  } catch (error) {
+    console.error('[getAllSelectedTopics] Fatal error:', error);
+    return [];
+  }
 }
 
 export async function getSelectedTopicById(id: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const result = await db
-    .select()
-    .from(selectedTopics)
-    .where(eq(selectedTopics.id, id))
-    .limit(1);
-  
-  return result[0] || null;
+  const result: any = await db.execute(sql`
+    SELECT * FROM selected_topics 
+    WHERE id = ${id}
+    LIMIT 1
+  `);
+  const topics = result[0] || result;
+  return topics[0] || null;
 }
 
-export async function getSelectedTopicBySourceId(sourceSubmissionId: number) {
+export async function getSelectedTopicBySubmissionId(sourceSubmissionId: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const result = await db
-    .select()
-    .from(selectedTopics)
-    .where(eq(selectedTopics.sourceSubmissionId, sourceSubmissionId))
-    .limit(1);
-  
-  return result[0] || null;
+  try {
+    const result: any = await db.execute(sql`
+      SELECT * FROM selected_topics 
+      WHERE sourceSubmissionId = ${sourceSubmissionId}
+      LIMIT 1
+    `);
+    const topics = result[0] || result;
+    return topics[0] || null;
+  } catch (error) {
+    console.error('[getSelectedTopicBySubmissionId] Error:', error);
+    return null;
+  }
 }
 
 export async function updateSelectedTopic(id: number, data: Partial<SelectedTopic>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(selectedTopics).set(data).where(eq(selectedTopics.id, id));
+  // 构建SET子句
+  const setClauses = Object.entries(data).map(([key, value]) => {
+    return `${key} = ${typeof value === 'string' ? `'${value}'` : value}`;
+  }).join(', ');
+  
+  await db.execute(sql.raw(`UPDATE selected_topics SET ${setClauses} WHERE id = ${id}`));
 }
 
 export async function deleteSelectedTopic(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.delete(selectedTopics).where(eq(selectedTopics.id, id));
+  await db.execute(sql`DELETE FROM selected_topics WHERE id = ${id}`);
 }
 
 export async function getProgressStats(month?: string) {

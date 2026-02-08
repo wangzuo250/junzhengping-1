@@ -9,15 +9,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { Edit, BarChart3, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
+
+// 建议形式分类
+const FORMAT_CATEGORIES = {
+  文字类: ["钧评", "长文"],
+  视频类: ["短视频", "长视频", "记者实拍"],
+  图片类: ["海报", "组图", "漫画"],
+};
 
 export default function SelectedTopics() {
   const { user, isAuthenticated } = useAuth();
   const [editingTopic, setEditingTopic] = useState<any>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [createForm, setCreateForm] = useState({ content: "", suggestion: "" });
+  const [createForm, setCreateForm] = useState({ 
+    content: "", 
+    suggestedFormat: [] as string[],
+    submitters: [] as number[],
+    creators: "",
+    leaderComment: "",
+    progress: "未开始" as const,
+    status: "未发布" as const,
+    remark: "",
+  });
   
   // 筛选状态
   const [filters, setFilters] = useState({
@@ -39,6 +56,16 @@ export default function SelectedTopics() {
     onSuccess: () => {
       toast.success("创建成功");
       setShowCreateDialog(false);
+      setCreateForm({
+        content: "",
+        suggestedFormat: [],
+        submitters: [],
+        creators: "",
+        leaderComment: "",
+        progress: "未开始",
+        status: "未发布",
+        remark: "",
+      });
       refetch();
     },
     onError: (error) => {
@@ -267,15 +294,15 @@ export default function SelectedTopics() {
                           topic.status === "否决" ? "text-red-600" :
                           "text-gray-600"
                         }>{topic.status}</span></p>
-                        {topic.suggestion && <p><strong>建议：</strong>{topic.suggestion}</p>}
+                        {topic.suggestion && <p><strong>形式：</strong>{topic.suggestion}</p>}
                         {topic.remark && <p><strong>备注：</strong>{topic.remark}</p>}
                       </div>
                     </div>
-                    {user?.role === "admin" && (
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setEditingTopic(topic)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setEditingTopic(topic)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      {user?.role === "admin" && (
                         <Button 
                           size="sm" 
                           variant="destructive"
@@ -287,8 +314,8 @@ export default function SelectedTopics() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -351,12 +378,36 @@ export default function SelectedTopics() {
                   />
                 </div>
                 <div>
-                  <Label>建议</Label>
-                  <Textarea
-                    value={editingTopic.suggestion || ""}
-                    onChange={(e) => setEditingTopic({...editingTopic, suggestion: e.target.value})}
-                    rows={2}
-                  />
+                  <Label>形式（可多选）</Label>
+                  <div className="space-y-3 border rounded-lg p-4">
+                    {Object.entries(FORMAT_CATEGORIES).map(([category, formats]) => (
+                      <div key={category}>
+                        <p className="text-sm font-medium mb-2">{category}</p>
+                        <div className="flex flex-wrap gap-3">
+                          {formats.map(format => {
+                            const currentFormats = editingTopic.suggestion?.split("、") || [];
+                            const isChecked = currentFormats.includes(format);
+                            return (
+                              <div key={format} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`edit-${format}`}
+                                  checked={isChecked}
+                                  onCheckedChange={(checked) => {
+                                    const formats = editingTopic.suggestion?.split("、").filter(Boolean) || [];
+                                    const newFormats = checked
+                                      ? [...formats, format]
+                                      : formats.filter((f: string) => f !== format);
+                                    setEditingTopic({...editingTopic, suggestion: newFormats.join("、")});
+                                  }}
+                                />
+                                <label htmlFor={`edit-${format}`} className="text-sm cursor-pointer">{format}</label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <Label>创作人</Label>
@@ -433,21 +484,134 @@ export default function SelectedTopics() {
             <DialogHeader>
               <DialogTitle>新建入选选题</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               <div>
-                <Label>选题内容</Label>
+                <Label>选题内容 *</Label>
                 <Textarea
                   placeholder="输入选题内容"
                   rows={3}
+                  value={createForm.content}
                   onChange={(e) => setCreateForm(prev => ({...prev, content: e.target.value}))}
                 />
               </div>
+              
               <div>
-                <Label>建议</Label>
+                <Label>形式（可多选）</Label>
+                <div className="space-y-3 border rounded-lg p-4">
+                  {Object.entries(FORMAT_CATEGORIES).map(([category, formats]) => (
+                    <div key={category}>
+                      <p className="text-sm font-medium mb-2">{category}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {formats.map(format => (
+                          <div key={format} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`create-${format}`}
+                              checked={createForm.suggestedFormat.includes(format)}
+                              onCheckedChange={(checked) => {
+                                setCreateForm(prev => ({
+                                  ...prev,
+                                  suggestedFormat: checked
+                                    ? [...prev.suggestedFormat, format]
+                                    : prev.suggestedFormat.filter((f: string) => f !== format)
+                                }));
+                              }}
+                            />
+                            <label htmlFor={`create-${format}`} className="text-sm cursor-pointer">{format}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>提报人 *</Label>
+                <div className="border rounded-lg p-4 space-y-2 max-h-48 overflow-y-auto">
+                  {users.map(u => (
+                    <div key={u.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`submitter-${u.id}`}
+                        checked={createForm.submitters.includes(u.id)}
+                        onCheckedChange={(checked) => {
+                          setCreateForm(prev => ({
+                            ...prev,
+                            submitters: checked
+                              ? [...prev.submitters, u.id]
+                              : prev.submitters.filter(id => id !== u.id)
+                          }));
+                        }}
+                      />
+                      <label htmlFor={`submitter-${u.id}`} className="text-sm cursor-pointer">
+                        {u.name || u.username}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>创作人</Label>
+                <Input
+                  placeholder="输入创作人（可选）"
+                  value={createForm.creators}
+                  onChange={(e) => setCreateForm(prev => ({...prev, creators: e.target.value}))}
+                />
+              </div>
+
+              <div>
+                <Label>领导点评</Label>
                 <Textarea
-                  placeholder="输入建议（可选）"
+                  placeholder="输入领导点评（可选）"
                   rows={2}
-                  onChange={(e) => setCreateForm(prev => ({...prev, suggestion: e.target.value}))}
+                  value={createForm.leaderComment}
+                  onChange={(e) => setCreateForm(prev => ({...prev, leaderComment: e.target.value}))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>进度</Label>
+                  <Select 
+                    value={createForm.progress} 
+                    onValueChange={(v: any) => setCreateForm(prev => ({...prev, progress: v}))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="未开始">未开始</SelectItem>
+                      <SelectItem value="进行中">进行中</SelectItem>
+                      <SelectItem value="已完成">已完成</SelectItem>
+                      <SelectItem value="已暂停">已暂停</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>状态</Label>
+                  <Select 
+                    value={createForm.status} 
+                    onValueChange={(v: any) => setCreateForm(prev => ({...prev, status: v}))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="未发布">未发布</SelectItem>
+                      <SelectItem value="已发布">已发布</SelectItem>
+                      <SelectItem value="否决">否决</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label>备注</Label>
+                <Textarea
+                  placeholder="输入备注（可选）"
+                  rows={2}
+                  value={createForm.remark}
+                  onChange={(e) => setCreateForm(prev => ({...prev, remark: e.target.value}))}
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -457,10 +621,23 @@ export default function SelectedTopics() {
                     toast.error("请输入选题内容");
                     return;
                   }
+                  if (createForm.submitters.length === 0) {
+                    toast.error("请选择至少一个提报人");
+                    return;
+                  }
+                  const submitterNames = users
+                    .filter(u => createForm.submitters.includes(u.id))
+                    .map(u => u.name || u.username)
+                    .join("、");
                   createMutation.mutate({
                     content: createForm.content,
-                    suggestion: createForm.suggestion,
-                    submitters: "",
+                    suggestion: createForm.suggestedFormat.join("、"),
+                    submitters: submitterNames,
+                    creators: createForm.creators,
+                    leaderComment: createForm.leaderComment,
+                    progress: createForm.progress,
+                    status: createForm.status,
+                    remark: createForm.remark,
                   });
                 }}>创建</Button>
               </div>

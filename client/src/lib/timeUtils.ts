@@ -6,15 +6,22 @@
 /**
  * 将时间戳转换为北京时间的Date对象
  */
-export function toBJTime(timestamp: number | Date): Date {
-  const ts = typeof timestamp === 'number' ? timestamp : timestamp.getTime();
+export function toBJTime(timestamp: number | Date | string): Date {
+  let ts: number;
+  if (typeof timestamp === 'number') {
+    ts = timestamp;
+  } else if (typeof timestamp === 'string') {
+    ts = new Date(timestamp).getTime();
+  } else {
+    ts = timestamp.getTime();
+  }
   return new Date(ts + 8 * 60 * 60 * 1000);
 }
 
 /**
  * 将时间戳转换为北京时间的日期字符串（YYYY-MM-DD）
  */
-export function formatBJDate(timestamp: number | Date): string {
+export function formatBJDate(timestamp: number | Date | string): string {
   const bjTime = toBJTime(timestamp);
   const year = bjTime.getUTCFullYear();
   const month = String(bjTime.getUTCMonth() + 1).padStart(2, '0');
@@ -25,7 +32,7 @@ export function formatBJDate(timestamp: number | Date): string {
 /**
  * 将时间戳转换为北京时间的完整时间字符串（YYYY-MM-DD HH:mm:ss）
  */
-export function formatBJDateTime(timestamp: number | Date): string {
+export function formatBJDateTime(timestamp: number | Date | string): string {
   const bjTime = toBJTime(timestamp);
   const year = bjTime.getUTCFullYear();
   const month = String(bjTime.getUTCMonth() + 1).padStart(2, '0');
@@ -39,7 +46,7 @@ export function formatBJDateTime(timestamp: number | Date): string {
 /**
  * 将时间戳转换为北京时间的时间字符串（HH:mm）
  */
-export function formatBJTime(timestamp: number | Date): string {
+export function formatBJTime(timestamp: number | Date | string): string {
   const bjTime = toBJTime(timestamp);
   const hour = String(bjTime.getUTCHours()).padStart(2, '0');
   const minute = String(bjTime.getUTCMinutes()).padStart(2, '0');
@@ -49,7 +56,7 @@ export function formatBJTime(timestamp: number | Date): string {
 /**
  * 将时间戳转换为北京时间的中文日期字符串（YYYY年MM月DD日 星期X）
  */
-export function formatBJDateChinese(timestamp: number | Date): string {
+export function formatBJDateChinese(timestamp: number | Date | string): string {
   const bjTime = toBJTime(timestamp);
   const year = bjTime.getUTCFullYear();
   const month = bjTime.getUTCMonth() + 1;
